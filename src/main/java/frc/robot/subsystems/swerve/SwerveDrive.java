@@ -1056,7 +1056,7 @@ public class SwerveDrive extends SubsystemBase {
         return true;
     }
 
-    public void driveRobotRelative(ChassisSpeeds speeds) {
+    private void driveRobotRelative(ChassisSpeeds speeds) {
         double dt = Timer.getTimestamp() - prevDriveTime; 
         prevDriveTime = Timer.getTimestamp();
 
@@ -1141,7 +1141,7 @@ public class SwerveDrive extends SubsystemBase {
         Logger.recordOutput("SwerveDrive/optimizedModuleSetpoints", moduleSetpoints);
     }
 
-    public void driveFieldRelative(ChassisSpeeds speeds) {
+    private void driveFieldRelative(ChassisSpeeds speeds) {
         speeds = ChassisSpeeds.fromFieldRelativeSpeeds(speeds, RobotState.getInstance().getEstimatedPose().getRotation());
         driveRobotRelative(speeds);
     }
