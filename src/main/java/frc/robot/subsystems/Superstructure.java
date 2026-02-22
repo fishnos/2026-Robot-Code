@@ -382,7 +382,7 @@ public class Superstructure extends SubsystemBase {
 
     /**
      * Checks if all mechanisms are at their setpoints and ready to shoot.
-     * Uses shot impact error as the sole readiness metric.
+     * Uses shot impact error and lerp table distance bounds as readiness metrics.
      */
     private boolean isReadyForShot() {
         double actualHood = shooter.getHoodAngleRotations();
@@ -398,12 +398,22 @@ public class Superstructure extends SubsystemBase {
         double impactErrorMeters = actualLanding.toTranslation2d()
             .getDistance(setpointLanding.toTranslation2d());
         boolean shooterReady = impactErrorMeters <= SHOT_IMPACT_TOLERANCE_METERS;
+        double effectiveDistance = cachedShotData.effectiveDistance();
+        double minShotDistance = shooter.getMinShotDistFromShooterMeters();
+        double maxShotDistance = shooter.getMaxShotDistFromShooterMeters();
+        boolean distanceInRange =
+            effectiveDistance >= minShotDistance && effectiveDistance <= maxShotDistance;
+
         Logger.recordOutput("Superstructure/shooterReady", shooterReady);
+        Logger.recordOutput("Superstructure/shotDistanceInRange", distanceInRange);
+        Logger.recordOutput("Superstructure/effectiveShotDistanceMeters", effectiveDistance);
+        Logger.recordOutput("Superstructure/minShotDistanceMeters", minShotDistance);
+        Logger.recordOutput("Superstructure/maxShotDistanceMeters", maxShotDistance);
         Logger.recordOutput("Superstructure/actualLanding", actualLanding);
         Logger.recordOutput("Superstructure/setpointLanding", setpointLanding);
         Logger.recordOutput("Superstructure/impactErrorMeters", impactErrorMeters);
 
-        return shooterReady;
+        return shooterReady && distanceInRange;
     }
 
     /**
