@@ -47,7 +47,7 @@ public class RobotContainer {
 
     private final RobotState robotState = RobotState.getInstance();
     private final SwerveDrive swerveDrive = SwerveDrive.getInstance();
-    // private final Superstructure superstructure = Superstructure.getInstance();
+    private final Superstructure superstructure = Superstructure.getInstance();
     // private final Vision vision = Vision.getInstance();
     @SuppressWarnings("unused")
     private final ProjectileVisualizer projectileVisualizer = ProjectileVisualizer.getInstance();
@@ -72,7 +72,8 @@ public class RobotContainer {
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELEOP);
         
         // Set default superstructure state to HOME
-        // superstructure.setDesiredState(Superstructure.DesiredState.HOME);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
+        superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.STOWED);
 
 
         configureBindings();
@@ -88,17 +89,19 @@ public class RobotContainer {
     }
 
     private void configureBindings() {
-        xboxDriver.getXButton().onTrue(
-            new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
+        // xboxDriver.getXButton().onTrue(
+        //     new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
+        // );
+        xboxDriver.getAButton().onTrue(
+            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME))
         );
-        
-        // xboxDriver.getAButton().onTrue(
-        //     new InstantCommand(() -> superstructure.setDesiredState(DesiredState.SHOOTING_STOWED))
-        // );
+        xboxDriver.getBButton().onTrue(
+            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING))
+        );
 
-        // xboxDriver.getBButton().onTrue(
-        //     new InstantCommand(() -> superstructure.setDesiredState(DesiredState.TRACKING_STOWED))
-        // );
+        // Split-state pattern example:
+        // superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING);
+        // superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.INTAKING);
 
         // xboxDriver.getAButton().onTrue(
         //     new InstantCommand(() -> Intake.getInstance().setSetpoint(Intake.IntakeSetpoint.INTAKING))
@@ -107,9 +110,9 @@ public class RobotContainer {
         //     new InstantCommand(() -> Intake.getInstance().setSetpoint(Intake.IntakeSetpoint.STOWED))
         // );
 
-        // Test snap-to-angle bindings
-        // xboxDriver.getAButton().onTrue(new InstantCommand(() -> superstructure.setDesiredState(Superstructure.DesiredState.BUMP_STOWED)));
-        // xboxDriver.getAButton().onFalse(new InstantCommand(() -> superstructure.setDesiredState(Superstructure.DesiredState.HOME)));
+        // Test snap-to-angle bindings with split superstructure states:
+        // xboxDriver.getAButton().onTrue(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.BUMP)));
+        // xboxDriver.getAButton().onFalse(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
     }
 
     private Command followPath(Path path, boolean shouldResetPose) {
@@ -129,17 +132,17 @@ public class RobotContainer {
     public void teleopInit() {
         // Ensure we're in teleop state
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELEOP);
-        // superstructure.setDesiredState(Superstructure.DesiredState.HOME);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
     }
 
     public void autonomousInit() {
         // Set up for autonomous
-        // superstructure.setDesiredState(DesiredState.HOME);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.IDLE);
     }
 
     public void disabledInit() {
-        // superstructure.setDesiredState(Superstructure.DesiredState.DISABLED);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.DISABLED);
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.DISABLED);
     }
 

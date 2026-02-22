@@ -10,6 +10,9 @@ import edu.wpi.first.math.numbers.N3;
 import java.util.function.DoubleUnaryOperator;
 
 public class ShotCalculator {
+    private static final double MIN_EFFECTIVE_COS = 0.05;
+    private static final double MIN_FLIGHT_TIME_SECONDS = 1e-3;
+    private static final double MIN_EXIT_VELOCITY_DENOMINATOR = 1e-6;
 
     public record ShotData(
         Rotation2d targetFieldYaw,
@@ -27,8 +30,8 @@ public class ShotCalculator {
         ChassisSpeeds fieldRelativeSpeeds,
         InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable,
         double latencyCompensationSeconds,
-        DoubleUnaryOperator rpsToExitVelocity,
-        DoubleUnaryOperator rpsToSpinRateRadPerSec,
+        double measuredFlywheelRps,
+        DoubleUnaryOperator wheelRpsToExitVelocity,
         Translation2d shooterOffsetFromRobotCenter,
         Rotation2d robotHeading
     ) {
@@ -53,7 +56,7 @@ public class ShotCalculator {
 
         // Iteratively solve for correct distance and flight time (robot reference frame approach)
         // Use HORIZONTAL distance (2D) as that's what the lerp table expects
-        double shooterDistanceToTarget = shooterPosition.toTranslation2d().getDistance(targetLocation.toTranslation2d());
+        double shooterLerpTableDistanceToTarget = shooterPosition.toTranslation2d().getDistance(targetLocation.toTranslation2d());
         
         double shotFlightTime = 0.0;
         double targetX = targetLocation.getX();
@@ -63,7 +66,7 @@ public class ShotCalculator {
         for (int i = 0; i < 30; i++) {
             
             // Get shooter flight time for current distance estimate
-            shotFlightTime = lerpTable.get(shooterDistanceToTarget).get(2, 0);
+            shotFlightTime = lerpTable.get(shooterLerpTableDistanceToTarget).get(2, 0);
             
             // In robot frame, target appears to move. Predict where it will appear to be
             // Use total shooter velocity (includes tangential component from omega)
@@ -74,10 +77,10 @@ public class ShotCalculator {
             targetY = targetLocation.getY() - vyDisplacement;
             
             // Recalculate distance to compensated target
-            double oldDistance = shooterDistanceToTarget;
-            shooterDistanceToTarget = shooterPosition.toTranslation2d().getDistance(new Translation2d(targetX, targetY));
+            double oldDistance = shooterLerpTableDistanceToTarget;
+            shooterLerpTableDistanceToTarget = shooterPosition.toTranslation2d().getDistance(new Translation2d(targetX, targetY));
             
-            double distanceChange = Math.abs(shooterDistanceToTarget - oldDistance);
+            double distanceChange = Math.abs(shooterLerpTableDistanceToTarget - oldDistance);
             
             // Stop iterating if converged (distance change < 1cm)
             if (distanceChange < 0.01) {
@@ -90,18 +93,69 @@ public class ShotCalculator {
         double shooterAngleToTarget = Math.atan2(targetY - shooterPosition.getY(), targetX - shooterPosition.getX());
         
         // Get final settings for this distance
-        double hoodAngleDegrees = lerpTable.get(shooterDistanceToTarget).get(0, 0);
-        double flywheelVelocityRPS = lerpTable.get(shooterDistanceToTarget).get(1, 0);
-        double exitVelocity = rpsToExitVelocity.applyAsDouble(flywheelVelocityRPS);
+        double hoodAngleDegrees = lerpTable.get(shooterLerpTableDistanceToTarget).get(0, 0);
+        double flywheelVelocityRPS = lerpTable.get(shooterLerpTableDistanceToTarget).get(1, 0);
+        double finalFlightTime = lerpTable.get(shooterLerpTableDistanceToTarget).get(2, 0);
+        double exitVelocity = calculateExitVelocityMetersPerSec(
+            shooterLerpTableDistanceToTarget,
+            hoodAngleDegrees,
+            finalFlightTime,
+            flywheelVelocityRPS,
+            measuredFlywheelRps,
+            wheelRpsToExitVelocity
+        );
         
         return new ShotData(
             new Rotation2d(shooterAngleToTarget),
             Rotation2d.fromDegrees(hoodAngleDegrees),
             flywheelVelocityRPS,
             exitVelocity,
-            shotFlightTime,
-            shooterDistanceToTarget,
+            finalFlightTime,
+            shooterLerpTableDistanceToTarget,
             new Translation2d(targetX, targetY)
         );
+    }
+
+    public static double calculateExitVelocityMetersPerSec(
+        double distanceMeters,
+        InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable,
+        double measuredFlywheelRps,
+        DoubleUnaryOperator wheelRpsToExitVelocity
+    ) {
+        double hoodAngleDegrees = lerpTable.get(distanceMeters).get(0, 0);
+        double setpointFlywheelRps = lerpTable.get(distanceMeters).get(1, 0);
+        double flightTimeSeconds = lerpTable.get(distanceMeters).get(2, 0);
+        return calculateExitVelocityMetersPerSec(
+            distanceMeters,
+            hoodAngleDegrees,
+            flightTimeSeconds,
+            setpointFlywheelRps,
+            measuredFlywheelRps,
+            wheelRpsToExitVelocity
+        );
+    }
+
+    private static double calculateExitVelocityMetersPerSec(
+        double distanceMeters,
+        double hoodAngleDegrees,
+        double flightTimeSeconds,
+        double setpointFlywheelRps,
+        double measuredFlywheelRps,
+        DoubleUnaryOperator wheelRpsToExitVelocity
+    ) {
+        double hoodAngleRadians = Math.toRadians(hoodAngleDegrees);
+        double effectiveCos = Math.max(MIN_EFFECTIVE_COS, Math.abs(Math.cos(hoodAngleRadians)));
+        double effectiveFlightTime = Math.max(MIN_FLIGHT_TIME_SECONDS, flightTimeSeconds);
+        double baseExitVelocity = distanceMeters / (effectiveFlightTime * effectiveCos);
+
+        double setpointExitVelocityMps = wheelRpsToExitVelocity.applyAsDouble(setpointFlywheelRps);
+        double measuredExitVelocityMps = wheelRpsToExitVelocity.applyAsDouble(measuredFlywheelRps);
+        double safeSetpointExitVelocityMps = Math.max(
+            MIN_EXIT_VELOCITY_DENOMINATOR,
+            Math.abs(setpointExitVelocityMps)
+        );
+        double exitVelocityScale = measuredExitVelocityMps / safeSetpointExitVelocityMps;
+
+        return baseExitVelocity * exitVelocityScale;
     }
 }

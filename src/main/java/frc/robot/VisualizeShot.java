@@ -15,6 +15,14 @@ import frc.robot.subsystems.shooter.Shooter;
 
 public class VisualizeShot {
     public VisualizeShot() {
+        this(Shooter.getInstance().getShotExitVelocityMetersPerSec());
+    }
+
+    public VisualizeShot(double launchExitVelocityMetersPerSec) {
+        visualize(launchExitVelocityMetersPerSec);
+    }
+
+    private void visualize(double launchExitVelocityMetersPerSec) {
         // Convert robot pose from field-relative Pose2d to Pose3d
         Pose3d robotPose3d = new Pose3d(RobotState.getInstance().getEstimatedPose());
         Rotation2d robotHeading = RobotState.getInstance().getEstimatedPose().getRotation();
@@ -45,7 +53,7 @@ public class VisualizeShot {
         shooterPose = new Pose3d(shooterPose.getTranslation(), newRotation);
 
         double flywheelRPS = Shooter.getInstance().getFlywheelVelocityRotationsPerSec();
-        double exitVelocity = Shooter.getInstance().getShotExitVelocityMetersPerSec();
+        double exitVelocity = launchExitVelocityMetersPerSec;
         double backspinRPM = Shooter.getInstance().calculateBackSpinRPM(flywheelRPS);
         
         // Include tangential velocity from robot rotation (omega cross r)

@@ -1,7 +1,5 @@
 package frc.robot.subsystems;
 
-import java.util.function.DoubleUnaryOperator;
-
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
@@ -315,12 +313,12 @@ public class Superstructure extends SubsystemBase {
             if (!hasStartedShooting) {
                 hasStartedShooting = true;
                 lastBallVisualizedTime = now;
-                new VisualizeShot();
+                new VisualizeShot(cachedShotData.exitVelocity());
             } else {
                 double ballIntervalSeconds = 1.0 / BALLS_PER_SECOND;
                 if (now - lastBallVisualizedTime >= ballIntervalSeconds) {
                     lastBallVisualizedTime = now;
-                    new VisualizeShot();
+                    new VisualizeShot(cachedShotData.exitVelocity());
                 }
             }
         }
@@ -455,13 +453,7 @@ public class Superstructure extends SubsystemBase {
     }
 
     private ShotData calculateShotData() {
-        Translation3d targetLocation = FieldConstants.Hub.hubCenter;
-        if (Constants.shouldFlipPath()) {
-            Translation2d fieldPosition = targetLocation.toTranslation2d();
-            fieldPosition = FlippingUtil.flipFieldPosition(fieldPosition);
-
-            targetLocation = new Translation3d(fieldPosition.getX(), fieldPosition.getY(), targetLocation.getZ());
-        }
+        Translation3d targetLocation = getFieldTargetLocation();
         
         // Calculate shooter position in field coordinates
         Pose3d robotPose = new Pose3d(
@@ -477,9 +469,6 @@ public class Superstructure extends SubsystemBase {
         ChassisSpeeds speeds = robotState.getFieldRelativeSpeeds();
         InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable = shooter.getLerpTable();
         double lcomp = latencyCompensationSeconds.get();
-        DoubleUnaryOperator rpsToExitVelocity = shooter::calculateShotExitVelocityMetersPerSec;
-        DoubleUnaryOperator rpsToSpinRateRadPerSec =
-            rps -> shooter.calculateBackSpinRPM(rps) * 2.0 * Math.PI / 60.0;
         
         // Get shooter offset from robot center (for omega compensation)
         Translation2d shooterOffsetFromRobotCenter = shooter.getShooterRelativePose().getTranslation().toTranslation2d();
@@ -491,11 +480,20 @@ public class Superstructure extends SubsystemBase {
             speeds,
             lerpTable,
             lcomp,
-            rpsToExitVelocity,
-            rpsToSpinRateRadPerSec,
+            shooter.getFlywheelVelocityRotationsPerSec(),
+            shooter::calculateShotExitVelocityMetersPerSec,
             shooterOffsetFromRobotCenter,
             robotHeading
         );
+    }
+
+    private Translation3d getFieldTargetLocation() {
+        Translation3d targetLocation = FieldConstants.Hub.hubCenter;
+        if (Constants.shouldFlipPath()) {
+            Translation2d fieldPosition = FlippingUtil.flipFieldPosition(targetLocation.toTranslation2d());
+            targetLocation = new Translation3d(fieldPosition.getX(), fieldPosition.getY(), targetLocation.getZ());
+        }
+        return targetLocation;
     }
 
     private Translation3d simulateShotLanding(
@@ -514,7 +512,16 @@ public class Superstructure extends SubsystemBase {
         Translation3d shooterPosition =
             robotPose.plus(new Transform3d(new Pose3d(), shooter.getShooterRelativePose())).getTranslation();
 
-        double exitVelocity = shooter.calculateShotExitVelocityMetersPerSec(flywheelRPS);
+        Translation3d targetLocation = getFieldTargetLocation();
+        double shooterDistanceToTarget =
+            shooterPosition.toTranslation2d().getDistance(targetLocation.toTranslation2d());
+        InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable = shooter.getLerpTable();
+        double exitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
+            shooterDistanceToTarget,
+            lerpTable,
+            flywheelRPS,
+            shooter::calculateShotExitVelocityMetersPerSec
+        );
         double spinRateRadPerSec = shooter.calculateBackSpinRPM(flywheelRPS) * 2.0 * Math.PI / 60.0;
 
         double pitch = hoodAngleRotations * 2.0 * Math.PI;
