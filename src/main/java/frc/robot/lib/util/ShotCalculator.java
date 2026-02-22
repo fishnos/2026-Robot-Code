@@ -10,8 +10,6 @@ import edu.wpi.first.math.numbers.N3;
 import java.util.function.DoubleUnaryOperator;
 
 public class ShotCalculator {
-    private static final double MIN_EFFECTIVE_COS = 0.05;
-    private static final double MIN_FLIGHT_TIME_SECONDS = 1e-3;
     private static final double MIN_EXIT_VELOCITY_DENOMINATOR = 1e-6;
 
     public record ShotData(
@@ -97,9 +95,6 @@ public class ShotCalculator {
         double flywheelVelocityRPS = lerpTable.get(shooterLerpTableDistanceToTarget).get(1, 0);
         double finalFlightTime = lerpTable.get(shooterLerpTableDistanceToTarget).get(2, 0);
         double exitVelocity = calculateExitVelocityMetersPerSec(
-            shooterLerpTableDistanceToTarget,
-            hoodAngleDegrees,
-            finalFlightTime,
             flywheelVelocityRPS,
             measuredFlywheelRps,
             wheelRpsToExitVelocity
@@ -122,13 +117,8 @@ public class ShotCalculator {
         double measuredFlywheelRps,
         DoubleUnaryOperator wheelRpsToExitVelocity
     ) {
-        double hoodAngleDegrees = lerpTable.get(distanceMeters).get(0, 0);
         double setpointFlywheelRps = lerpTable.get(distanceMeters).get(1, 0);
-        double flightTimeSeconds = lerpTable.get(distanceMeters).get(2, 0);
         return calculateExitVelocityMetersPerSec(
-            distanceMeters,
-            hoodAngleDegrees,
-            flightTimeSeconds,
             setpointFlywheelRps,
             measuredFlywheelRps,
             wheelRpsToExitVelocity
@@ -136,26 +126,16 @@ public class ShotCalculator {
     }
 
     private static double calculateExitVelocityMetersPerSec(
-        double distanceMeters,
-        double hoodAngleDegrees,
-        double flightTimeSeconds,
         double setpointFlywheelRps,
         double measuredFlywheelRps,
         DoubleUnaryOperator wheelRpsToExitVelocity
     ) {
-        double hoodAngleRadians = Math.toRadians(hoodAngleDegrees);
-        double effectiveCos = Math.max(MIN_EFFECTIVE_COS, Math.abs(Math.cos(hoodAngleRadians)));
-        double effectiveFlightTime = Math.max(MIN_FLIGHT_TIME_SECONDS, flightTimeSeconds);
-        double baseExitVelocity = distanceMeters / (effectiveFlightTime * effectiveCos);
-
         double setpointExitVelocityMps = wheelRpsToExitVelocity.applyAsDouble(setpointFlywheelRps);
-        double measuredExitVelocityMps = wheelRpsToExitVelocity.applyAsDouble(measuredFlywheelRps);
-        double safeSetpointExitVelocityMps = Math.max(
-            MIN_EXIT_VELOCITY_DENOMINATOR,
-            Math.abs(setpointExitVelocityMps)
-        );
-        double exitVelocityScale = measuredExitVelocityMps / safeSetpointExitVelocityMps;
-
-        return baseExitVelocity * exitVelocityScale;
+        double safeSetpointRps = Math.max(MIN_EXIT_VELOCITY_DENOMINATOR, Math.abs(setpointFlywheelRps));
+        if (Math.abs(setpointExitVelocityMps) < MIN_EXIT_VELOCITY_DENOMINATOR) {
+            return 0.0;
+        }
+        double exitVelocityScale = measuredFlywheelRps / safeSetpointRps;
+        return setpointExitVelocityMps * exitVelocityScale;
     }
 }

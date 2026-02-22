@@ -19,7 +19,7 @@ class ShotCalculatorTest {
     private static final double EPS = 1e-9;
 
     @Test
-    // Exit velocity should equal TOF base velocity scaled by measured/setpoint wheel-model ratio.
+    // Exit velocity should equal setpoint wheel-model speed scaled by measured/setpoint RPS ratio.
     void calculateExitVelocityMetersPerSec_scalesByMeasuredVsSetpointExitVelocity() {
         InterpolatingMatrixTreeMap<Double, N3, N1> table = TestLerpTableFactory.table(
             new double[] { 3.0, 40.0, 30.0, 0.45 },
@@ -31,47 +31,40 @@ class ShotCalculatorTest {
         double measuredRps = 28.0;
         double actual = ShotCalculator.calculateExitVelocityMetersPerSec(distance, table, measuredRps, wheelModel);
 
-        double hoodDeg = table.get(distance).get(0, 0);
         double setpointRps = table.get(distance).get(1, 0);
-        double tof = table.get(distance).get(2, 0);
-        double base = distance / (tof * Math.abs(Math.cos(Math.toRadians(hoodDeg))));
-        double expected = base * (wheelModel.applyAsDouble(measuredRps) / wheelModel.applyAsDouble(setpointRps));
+        double setpointExitVelocity = wheelModel.applyAsDouble(setpointRps);
+        double expected = setpointExitVelocity * (measuredRps / setpointRps);
 
         assertEquals(expected, actual, EPS);
     }
 
     @Test
-    // Near-vertical hood angles should use the cosine floor to avoid singular speeds.
-    void calculateExitVelocityMetersPerSec_clampsCosineNearVertical() {
+    // Exit velocity should be determined by setpoint/measurement RPS and wheel model, not hood/TOF fields.
+    void calculateExitVelocityMetersPerSec_ignoresHoodAndFlightTimeColumns() {
+        InterpolatingMatrixTreeMap<Double, N3, N1> table = TestLerpTableFactory.table(
+            new double[] { 2.0, -20.0, 25.0, 0.01 },
+            new double[] { 4.0, 85.0, 25.0, 5.00 }
+        );
+
+        double atTwoMeters = ShotCalculator.calculateExitVelocityMetersPerSec(2.0, table, 20.0, rps -> rps * 0.5);
+        double atFourMeters = ShotCalculator.calculateExitVelocityMetersPerSec(4.0, table, 20.0, rps -> rps * 0.5);
+
+        assertEquals(atTwoMeters, atFourMeters, EPS);
+    }
+
+    @Test
+    // Zero setpoint RPS should safely return zero exit velocity.
+    void calculateExitVelocityMetersPerSec_whenSetpointRpsIsZero_returnsZero() {
         InterpolatingMatrixTreeMap<Double, N3, N1> table = TestLerpTableFactory.constantRange(
             0.0,
             10.0,
-            90.0,
             30.0,
-            0.5
-        );
-
-        double actual = ShotCalculator.calculateExitVelocityMetersPerSec(2.0, table, 30.0, rps -> rps);
-        double expected = 2.0 / (0.5 * 0.05);
-
-        assertEquals(expected, actual, EPS);
-    }
-
-    @Test
-    // Zero/invalid TOF should use the minimum flight-time floor.
-    void calculateExitVelocityMetersPerSec_clampsFlightTimeAtMinimum() {
-        InterpolatingMatrixTreeMap<Double, N3, N1> table = TestLerpTableFactory.constantRange(
             0.0,
-            10.0,
-            45.0,
-            20.0,
-            0.0
+            1.0
         );
 
-        double actual = ShotCalculator.calculateExitVelocityMetersPerSec(1.0, table, 20.0, rps -> rps);
-        double expected = 1.0 / (1e-3 * Math.abs(Math.cos(Math.toRadians(45.0))));
-
-        assertEquals(expected, actual, EPS);
+        double actual = ShotCalculator.calculateExitVelocityMetersPerSec(1.0, table, 20.0, rps -> rps * 0.5);
+        assertEquals(0.0, actual, EPS);
     }
 
     @Test
