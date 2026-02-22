@@ -107,6 +107,29 @@ public class Superstructure extends SubsystemBase {
     
     // Cached shot data - calculated once per periodic cycle
     private ShotData cachedShotData;
+    private ShotReadinessData cachedShotReadinessData = new ShotReadinessData(
+        new Translation3d(),
+        new Translation3d(),
+        Double.POSITIVE_INFINITY,
+        0.0,
+        0.0,
+        0.0,
+        false,
+        false,
+        false
+    );
+
+    private record ShotReadinessData(
+        Translation3d actualLanding,
+        Translation3d setpointLanding,
+        double impactErrorMeters,
+        double effectiveDistanceMeters,
+        double minShotDistanceMeters,
+        double maxShotDistanceMeters,
+        boolean shooterReady,
+        boolean distanceInRange,
+        boolean readyForShot
+    ) {}
 
     private Superstructure() {
         // Set up suppliers for the shooter - these provide dynamic setpoints based on shot calculation
@@ -122,6 +145,8 @@ public class Superstructure extends SubsystemBase {
         // Calculate shot data once per cycle - all methods use this cached value
         cachedShotData = calculateShotData();
         Logger.recordOutput("Superstructure/shotData", cachedShotData);
+        cachedShotReadinessData = calculateShotReadinessData();
+        logShotReadinessData(cachedShotReadinessData);
         
         handleStateTransitions();
         handleCurrentState();
@@ -383,6 +408,10 @@ public class Superstructure extends SubsystemBase {
      * Uses shot impact error and lerp table distance bounds as readiness metrics.
      */
     private boolean isReadyForShot() {
+        return cachedShotReadinessData.readyForShot();
+    }
+
+    private ShotReadinessData calculateShotReadinessData() {
         double actualHood = shooter.getHoodAngleRotations();
         double actualTurret = shooter.getTurretAngleRotations();
         double actualFlywheel = shooter.getFlywheelVelocityRotationsPerSec();
@@ -409,16 +438,28 @@ public class Superstructure extends SubsystemBase {
             maxShotDistance
         );
 
-        Logger.recordOutput("Superstructure/shooterReady", shooterReady);
-        Logger.recordOutput("Superstructure/shotDistanceInRange", distanceInRange);
-        Logger.recordOutput("Superstructure/effectiveShotDistanceMeters", effectiveDistance);
-        Logger.recordOutput("Superstructure/minShotDistanceMeters", minShotDistance);
-        Logger.recordOutput("Superstructure/maxShotDistanceMeters", maxShotDistance);
-        Logger.recordOutput("Superstructure/actualLanding", actualLanding);
-        Logger.recordOutput("Superstructure/setpointLanding", setpointLanding);
-        Logger.recordOutput("Superstructure/impactErrorMeters", impactErrorMeters);
+        return new ShotReadinessData(
+            actualLanding,
+            setpointLanding,
+            impactErrorMeters,
+            effectiveDistance,
+            minShotDistance,
+            maxShotDistance,
+            shooterReady,
+            distanceInRange,
+            readyForShot
+        );
+    }
 
-        return readyForShot;
+    private void logShotReadinessData(ShotReadinessData data) {
+        Logger.recordOutput("Superstructure/shooterReady", data.shooterReady());
+        Logger.recordOutput("Superstructure/shotDistanceInRange", data.distanceInRange());
+        Logger.recordOutput("Superstructure/effectiveShotDistanceMeters", data.effectiveDistanceMeters());
+        Logger.recordOutput("Superstructure/minShotDistanceMeters", data.minShotDistanceMeters());
+        Logger.recordOutput("Superstructure/maxShotDistanceMeters", data.maxShotDistanceMeters());
+        Logger.recordOutput("Superstructure/actualLanding", data.actualLanding());
+        Logger.recordOutput("Superstructure/setpointLanding", data.setpointLanding());
+        Logger.recordOutput("Superstructure/impactErrorMeters", data.impactErrorMeters());
     }
 
     static boolean isShotReady(
