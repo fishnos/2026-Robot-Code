@@ -106,13 +106,14 @@ public class ProjectileVisualizer extends SubsystemBase {
 
     private final ArrayList<ProjectileInstance> projectiles = new ArrayList<>();
     private int nextId = 0;
+    private Supplier<Double> timestampSupplier = Timer::getFPGATimestamp;
 
     private ProjectileVisualizer() {
     }
 
     @Override
     public void periodic() {
-        double now = Timer.getFPGATimestamp();
+        double now = timestampSupplier.get();
         Iterator<ProjectileInstance> iterator = projectiles.iterator();
 
         while (iterator.hasNext()) {
@@ -142,6 +143,18 @@ public class ProjectileVisualizer extends SubsystemBase {
 
         Logger.recordOutput("ProjectileVisualizer/Translations", activeTranslations);
         Logger.recordOutput("ProjectileVisualizer/ActiveCount", projectiles.size());
+    }
+
+    void setTimestampSupplierForTesting(Supplier<Double> timestampSupplier) {
+        this.timestampSupplier = timestampSupplier != null ? timestampSupplier : Timer::getFPGATimestamp;
+    }
+
+    void resetTimestampSupplierForTesting() {
+        this.timestampSupplier = Timer::getFPGATimestamp;
+    }
+
+    int getActiveProjectileCountForTesting() {
+        return projectiles.size();
     }
 
     private int addProjectileInternal(

@@ -401,6 +401,13 @@ public class Superstructure extends SubsystemBase {
         double maxShotDistance = shooter.getMaxShotDistFromShooterMeters();
         boolean distanceInRange =
             effectiveDistance >= minShotDistance && effectiveDistance <= maxShotDistance;
+        boolean readyForShot = isShotReady(
+            impactErrorMeters,
+            SHOT_IMPACT_TOLERANCE_METERS,
+            effectiveDistance,
+            minShotDistance,
+            maxShotDistance
+        );
 
         Logger.recordOutput("Superstructure/shooterReady", shooterReady);
         Logger.recordOutput("Superstructure/shotDistanceInRange", distanceInRange);
@@ -411,7 +418,20 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/setpointLanding", setpointLanding);
         Logger.recordOutput("Superstructure/impactErrorMeters", impactErrorMeters);
 
-        return shooterReady && distanceInRange;
+        return readyForShot;
+    }
+
+    static boolean isShotReady(
+        double impactErrorMeters,
+        double shotImpactToleranceMeters,
+        double effectiveDistanceMeters,
+        double minShotDistanceMeters,
+        double maxShotDistanceMeters
+    ) {
+        boolean impactWithinTolerance = impactErrorMeters <= shotImpactToleranceMeters;
+        boolean distanceInRange =
+            effectiveDistanceMeters >= minShotDistanceMeters && effectiveDistanceMeters <= maxShotDistanceMeters;
+        return impactWithinTolerance && distanceInRange;
     }
 
     /**

@@ -204,11 +204,34 @@ public class Shooter extends SubsystemBase {
         Logger.recordOutput("Shooter/turretRequestedAngleDeg", requestedDeg);
         Logger.recordOutput("Shooter/turretCurrentAngleDeg", currentDeg);
 
+        TurretResolution resolution = resolveTurretTargetDegrees(requestedDeg, currentDeg, minDeg, maxDeg);
+        double targetAngleDeg = resolution.targetAngleDeg();
+        boolean usedUnwindFallback = resolution.usedUnwindFallback();
+        double unwindTargetDeg = resolution.unwindTargetDeg();
+
+        double targetAngleRotations = targetAngleDeg / 360.0;
+        turretSetpointRotations = targetAngleRotations;
+        turretResolvedSetpointDeg = targetAngleDeg;
+        turretUsedUnwindFallback = usedUnwindFallback;
+
+        Logger.recordOutput("Shooter/turretUsedUnwindFallback", usedUnwindFallback);
+        Logger.recordOutput("Shooter/turretUnwindTargetDeg", unwindTargetDeg);
+        Logger.recordOutput("Shooter/turretResolvedSetpointDeg", targetAngleDeg);
+        Logger.recordOutput("Shooter/turretAngleSetpointRotations", targetAngleRotations);
+
+        shooterIO.setTurretAngle(targetAngleRotations);
+    }
+
+    static TurretResolution resolveTurretTargetDegrees(
+        double requestedDeg,
+        double currentDeg,
+        double minDeg,
+        double maxDeg
+    ) {
         double targetAngleDeg;
         boolean usedUnwindFallback;
         double unwindTargetDeg = Double.NaN;
 
-        // Find all wrapped equivalents requestedDeg + k*360 within turret limits.
         int minK = (int) Math.ceil((minDeg - requestedDeg) / 360.0);
         int maxK = (int) Math.floor((maxDeg - requestedDeg) / 360.0);
 
@@ -228,24 +251,19 @@ public class Shooter extends SubsystemBase {
             targetAngleDeg = bestAngleDeg;
             usedUnwindFallback = false;
         } else {
-            // No valid wrapped equivalent: unwind toward the range side closest to turret zero.
             unwindTargetDeg = Math.abs(minDeg) <= Math.abs(maxDeg) ? minDeg : maxDeg;
             targetAngleDeg = unwindTargetDeg;
             usedUnwindFallback = true;
         }
 
-        double targetAngleRotations = targetAngleDeg / 360.0;
-        turretSetpointRotations = targetAngleRotations;
-        turretResolvedSetpointDeg = targetAngleDeg;
-        turretUsedUnwindFallback = usedUnwindFallback;
-
-        Logger.recordOutput("Shooter/turretUsedUnwindFallback", usedUnwindFallback);
-        Logger.recordOutput("Shooter/turretUnwindTargetDeg", unwindTargetDeg);
-        Logger.recordOutput("Shooter/turretResolvedSetpointDeg", targetAngleDeg);
-        Logger.recordOutput("Shooter/turretAngleSetpointRotations", targetAngleRotations);
-
-        shooterIO.setTurretAngle(targetAngleRotations);
+        return new TurretResolution(targetAngleDeg, usedUnwindFallback, unwindTargetDeg);
     }
+
+    static record TurretResolution(
+        double targetAngleDeg,
+        boolean usedUnwindFallback,
+        double unwindTargetDeg
+    ) {}
 
     public void setShotVelocity(double velocityRotationsPerSec) {
         flywheelSetpointRPS = velocityRotationsPerSec;
@@ -295,21 +313,50 @@ public class Shooter extends SubsystemBase {
      * Flywheel (bottom) moving faster than back roller (top) creates backspin.
      */
     public double calculateBackSpinRPM(double flywheelVelocityRotationsPerSec) {
-        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * config.flywheelRadiusMeters;
-        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * config.backRollerGearRatio
-            * 2 * Math.PI * config.backRollerRadiusMeters;
+        return calculateBackSpinRPM(
+            flywheelVelocityRotationsPerSec,
+            config.flywheelRadiusMeters,
+            config.backRollerGearRatio,
+            config.backRollerRadiusMeters,
+            FieldConstants.fuelDiameter / 2.0
+        );
+    }
+
+    public double calculateShotExitVelocityMetersPerSec(double flywheelVelocityRotationsPerSec) {
+        return calculateShotExitVelocityMetersPerSec(
+            flywheelVelocityRotationsPerSec,
+            config.flywheelRadiusMeters,
+            config.backRollerGearRatio,
+            config.backRollerRadiusMeters
+        );
+    }
+
+    static double calculateBackSpinRPM(
+        double flywheelVelocityRotationsPerSec,
+        double flywheelRadiusMeters,
+        double backRollerGearRatio,
+        double backRollerRadiusMeters,
+        double ballRadiusMeters
+    ) {
+        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * flywheelRadiusMeters;
+        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * backRollerGearRatio
+            * 2 * Math.PI * backRollerRadiusMeters;
 
         double deltaV = flywheelSurfaceVel - backRollerSurfaceVel;
-        double ballRadiusMeters = FieldConstants.fuelDiameter / 2.0;
         double spinRadPerSec = deltaV / ballRadiusMeters;
 
         return spinRadPerSec * 60.0 / (2 * Math.PI);
     }
 
-    public double calculateShotExitVelocityMetersPerSec(double flywheelVelocityRotationsPerSec) {
-        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * config.flywheelRadiusMeters;
-        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * config.backRollerGearRatio
-            * 2 * Math.PI * config.backRollerRadiusMeters;
+    static double calculateShotExitVelocityMetersPerSec(
+        double flywheelVelocityRotationsPerSec,
+        double flywheelRadiusMeters,
+        double backRollerGearRatio,
+        double backRollerRadiusMeters
+    ) {
+        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * flywheelRadiusMeters;
+        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * backRollerGearRatio
+            * 2 * Math.PI * backRollerRadiusMeters;
         return (flywheelSurfaceVel + backRollerSurfaceVel) / 2.0;
     }
 
