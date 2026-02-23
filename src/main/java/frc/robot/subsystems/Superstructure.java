@@ -119,6 +119,8 @@ public class Superstructure extends SubsystemBase {
 
     @Override
     public void periodic() {
+        latencyCompensationSeconds.setDefault(shooter.getLatencyCompensationSeconds());
+
         // Calculate shot data once per cycle - all methods use this cached value
         cachedShotData = calculateShotData();
         Logger.recordOutput("Superstructure/shotData", cachedShotData);
@@ -134,7 +136,6 @@ public class Superstructure extends SubsystemBase {
     private void handleStateTransitions() {
         handleSystemStateTransitions();
         handleIntakeStateTransitions();
-        latencyCompensationSeconds.setDefault(shooter.getLatencyCompensationSeconds());
     }
 
     private void handleSystemStateTransitions() {
