@@ -12,7 +12,7 @@
   "kickerKI": 0.0,
   "kickerKD": 0.0,
   "kickerMotorToOutputShaftRatio": 3.0,
-  "feedingVelocityRPS": 35.0,
+  "reverseVelocityRPS": -5.0,
   "kickingVelocityRPS": 35.0,
   "kickerVelocityToleranceRPS": 5.0
 }

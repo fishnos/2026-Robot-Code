@@ -10,7 +10,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.configs.ShooterConfig;
 import frc.robot.constants.Constants;
@@ -179,13 +179,19 @@ public class Shooter extends SubsystemBase {
 
     // Direct setters for mechanism control (exposed for tuning/overrides in RobotContainer)
     public void setHoodAngle(Rotation2d angle) {
-        double clampedAngle = MathUtil.clamp(angle.getRotations(), config.hoodMinAngleRotations, config.hoodMaxAngleRotations); 
+        double clampedAngleDeg = MathUtil.clamp(
+            angle.getDegrees(),
+            config.hoodMinAngleDegrees,
+            config.hoodMaxAngleDegrees
+        );
+        double clampedAngleRotations = clampedAngleDeg / 360.0;
 
-        hoodSetpointRotations = clampedAngle;
-        Logger.recordOutput("Shooter/angleSetpointRotations", clampedAngle);
-        Logger.recordOutput("Shooter/rawSetpointRotations", clampedAngle);
+        hoodSetpointRotations = clampedAngleRotations;
+        Logger.recordOutput("Shooter/hoodSetpointDegrees", clampedAngleDeg);
+        Logger.recordOutput("Shooter/angleSetpointRotations", clampedAngleRotations);
+        Logger.recordOutput("Shooter/rawSetpointRotations", clampedAngleRotations);
 
-        shooterIO.setAngle(clampedAngle);
+        shooterIO.setAngle(clampedAngleRotations);
     }
 
     private void setTurretAngle(Rotation2d angle) {
@@ -314,7 +320,8 @@ public class Shooter extends SubsystemBase {
     // Setpoint check methods
     @AutoLogOutput(key = "Shooter/isHoodAtSetpoint")
     public boolean isHoodAtSetpoint() {
-        return Math.abs(shooterInputs.hoodAngleRotations - hoodSetpointRotations) < config.hoodAngleToleranceRotations;
+        return Math.abs(shooterInputs.hoodAngleRotations - hoodSetpointRotations)
+            < (config.hoodAngleToleranceDegrees / 360.0);
     }
 
     @AutoLogOutput(key = "Shooter/isTurretAtSetpoint")
@@ -336,7 +343,7 @@ public class Shooter extends SubsystemBase {
     }
 
     // Config getters
-    public InterpolatingMatrixTreeMap<Double, N2, N1> getLerpTable() {
+    public InterpolatingMatrixTreeMap<Double, N3, N1> getLerpTable() {
         return config.getLerpTable();
     }
 

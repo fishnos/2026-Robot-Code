@@ -44,8 +44,8 @@ public final class LerpTableGenerator {
 
     public static List<LerpEntry> generate(ShooterConfig config) {
         double shooterHeight = config.shooterPoseZ;
-        double minAngle = config.hoodMinAngleRotations * 2.0 * Math.PI;
-        double maxAngle = config.hoodMaxAngleRotations * 2.0 * Math.PI;
+        double minAngle = Math.toRadians(config.hoodMinAngleDegrees);
+        double maxAngle = Math.toRadians(config.hoodMaxAngleDegrees);
 
         List<LerpEntry> results = new ArrayList<>();
         for (double inches : DEFAULT_DISTANCES_INCHES) {
@@ -53,7 +53,7 @@ public final class LerpTableGenerator {
             double waypointDistance = Math.max(0.0, distanceMeters - WAYPOINT_OFFSET_METERS);
 
             Solution solution = solve(distanceMeters, waypointDistance, shooterHeight, minAngle, maxAngle, config);
-            results.add(new LerpEntry(distanceMeters, solution.hoodAngleRotations, solution.flywheelRps));
+            results.add(new LerpEntry(distanceMeters, solution.hoodAngleDegrees, solution.flywheelRps));
         }
         return results;
     }
@@ -76,12 +76,12 @@ public final class LerpTableGenerator {
                 double error = sq(sample.waypointHeight - WAYPOINT_HEIGHT_METERS)
                     + sq(sample.targetHeight - HUB_HEIGHT_METERS);
                 if (error < best.error) {
-                    best = new Solution(angle / (2.0 * Math.PI), rps, error);
+                    best = new Solution(Math.toDegrees(angle), rps, error);
                 }
             }
         }
 
-        double bestAngle = best.hoodAngleRotations * 2.0 * Math.PI;
+        double bestAngle = Math.toRadians(best.hoodAngleDegrees);
         for (double angle = bestAngle - Math.toRadians(4.0); angle <= bestAngle + Math.toRadians(4.0); angle += Math.toRadians(0.5)) {
             if (angle < minAngle || angle > maxAngle) {
                 continue;
@@ -97,7 +97,7 @@ public final class LerpTableGenerator {
                 double error = sq(sample.waypointHeight - WAYPOINT_HEIGHT_METERS)
                     + sq(sample.targetHeight - HUB_HEIGHT_METERS);
                 if (error < best.error) {
-                    best = new Solution(angle / (2.0 * Math.PI), rps, error);
+                    best = new Solution(Math.toDegrees(angle), rps, error);
                 }
             }
         }
@@ -187,12 +187,12 @@ public final class LerpTableGenerator {
     }
 
     private static final class Solution {
-        final double hoodAngleRotations;
+        final double hoodAngleDegrees;
         final double flywheelRps;
         final double error;
 
-        Solution(double hoodAngleRotations, double flywheelRps, double error) {
-            this.hoodAngleRotations = hoodAngleRotations;
+        Solution(double hoodAngleDegrees, double flywheelRps, double error) {
+            this.hoodAngleDegrees = hoodAngleDegrees;
             this.flywheelRps = flywheelRps;
             this.error = error;
         }
@@ -200,12 +200,12 @@ public final class LerpTableGenerator {
 
     public static final class LerpEntry {
         public final double distanceMeters;
-        public final double hoodAngleRotations;
+        public final double hoodAngleDegrees;
         public final double flywheelVelocityRPS;
 
-        LerpEntry(double distanceMeters, double hoodAngleRotations, double flywheelVelocityRPS) {
+        LerpEntry(double distanceMeters, double hoodAngleDegrees, double flywheelVelocityRPS) {
             this.distanceMeters = distanceMeters;
-            this.hoodAngleRotations = hoodAngleRotations;
+            this.hoodAngleDegrees = hoodAngleDegrees;
             this.flywheelVelocityRPS = flywheelVelocityRPS;
         }
     }

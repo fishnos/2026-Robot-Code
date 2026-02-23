@@ -6,13 +6,13 @@
   "kickerPeakForwardTorqueCurrent": 40.0,
   "kickerPeakReverseTorqueCurrent": -40.0,
   "kickerKS": 0.0,
-  "kickerKV": 0.189,
+  "kickerKV": 0.03,
   "kickerKA": 0.0,
-  "kickerKP": 0.1,
+  "kickerKP": 0.003,
   "kickerKI": 0.0,
   "kickerKD": 0.0,
   "kickerMotorToOutputShaftRatio": 5.0,
-  "feedingVelocityRPS": 35.0,
+  "reverseVelocityRPS": -5.0,
   "kickingVelocityRPS": 35.0,
   "kickerVelocityToleranceRPS": 5.0
 }

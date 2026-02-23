@@ -9,13 +9,14 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.math.numbers.N3;
 
 public class ShooterConfig {
     public static class LerpEntry {
         public double distanceMeters;
-        public double hoodAngleRotations;
+        public double hoodAngleDegrees;
         public double flywheelVelocityRPS;
+        public double flightTimeSeconds;
     }
 
     public List<LerpEntry> lerpTable;
@@ -42,9 +43,9 @@ public class ShooterConfig {
 
     public double hoodMotorToOutputShaftRatio;
 
-    public double hoodStartingAngleRotations;
-    public double hoodMinAngleRotations;
-    public double hoodMaxAngleRotations;
+    public double hoodStartingAngleDegrees;
+    public double hoodMinAngleDegrees;
+    public double hoodMaxAngleDegrees;
 
     public int turretCanId;
     public boolean isTurretInverted;
@@ -97,19 +98,20 @@ public class ShooterConfig {
     public double shooterPosePitchDeg;
     public double shooterPoseYawDeg;
 
-    public double hoodAngleToleranceRotations;
+    public double hoodAngleToleranceDegrees;
     public double turretAngleToleranceRotations;
     public double flywheelVelocityToleranceRPS;
 
-    public InterpolatingMatrixTreeMap<Double, N2, N1> getLerpTable() {
-        InterpolatingMatrixTreeMap<Double, N2, N1> table = new InterpolatingMatrixTreeMap<>();
+    public InterpolatingMatrixTreeMap<Double, N3, N1> getLerpTable() {
+        InterpolatingMatrixTreeMap<Double, N3, N1> table = new InterpolatingMatrixTreeMap<>();
         if (lerpTable == null) {
             return table;
         }
         for (LerpEntry entry : lerpTable) {
-            table.put(entry.distanceMeters, new Matrix<N2, N1>(Nat.N2(), Nat.N1(), new double[]{
-                entry.hoodAngleRotations,
-                entry.flywheelVelocityRPS
+            table.put(entry.distanceMeters, new Matrix<N3, N1>(Nat.N3(), Nat.N1(), new double[]{
+                entry.hoodAngleDegrees,
+                entry.flywheelVelocityRPS,
+                entry.flightTimeSeconds
             }));
         }
         return table;

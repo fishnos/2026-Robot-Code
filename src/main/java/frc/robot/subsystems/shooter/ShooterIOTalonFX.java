@@ -104,15 +104,15 @@ public class ShooterIOTalonFX implements ShooterIO {
 
         // Software limits for hood angle
         hoodConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-        hoodConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = config.hoodMaxAngleRotations;
+        hoodConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = config.hoodMaxAngleDegrees / 360.0;
         hoodConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-        hoodConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = config.hoodMinAngleRotations;
+        hoodConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = config.hoodMinAngleDegrees / 360.0;
 
         hoodConfig.FutureProofConfigs = false;
 
         hoodMotor = new TalonFX(config.hoodCanId, new CANBus(config.canBusName));
         PhoenixUtil.tryUntilOk(5, () -> hoodMotor.getConfigurator().apply(hoodConfig, 0.25));
-        PhoenixUtil.tryUntilOk(5, () -> hoodMotor.setPosition(config.hoodStartingAngleRotations, 0.25));
+        PhoenixUtil.tryUntilOk(5, () -> hoodMotor.setPosition(config.hoodStartingAngleDegrees / 360.0, 0.25));
 
         // Turret motor configuration (positional control, mirrors hood, Motion Magic)
         turretConfig = new TalonFXConfiguration();
@@ -292,8 +292,9 @@ public class ShooterIOTalonFX implements ShooterIO {
     @Override
     public void setAngle(double angleRotations) {
         // Clamp angle within software limits
-        double clampedAngle = Math.max(config.hoodMinAngleRotations,
-            Math.min(config.hoodMaxAngleRotations, angleRotations));
+        double minRot = config.hoodMinAngleDegrees / 360.0;
+        double maxRot = config.hoodMaxAngleDegrees / 360.0;
+        double clampedAngle = Math.max(minRot, Math.min(maxRot, angleRotations));
         hoodMotor.setControl(hoodMotorRequest.withPosition(clampedAngle));
     }
 

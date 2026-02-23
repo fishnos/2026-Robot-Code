@@ -21,7 +21,7 @@ public class Kicker extends SubsystemBase {
 
     public enum KickerSetpoint {
         OFF(0.0),
-        FEEDING(Double.NaN),
+        REVERSE(Double.NaN),
         KICKING(Double.NaN);
 
         private final double rps;
@@ -83,8 +83,8 @@ public class Kicker extends SubsystemBase {
     }
 
     public void setSetpoint(KickerSetpoint setpoint) {
-        double targetRps = setpoint == KickerSetpoint.FEEDING
-            ? config.feedingVelocityRPS
+        double targetRps = setpoint == KickerSetpoint.REVERSE
+            ? config.reverseVelocityRPS
             : setpoint == KickerSetpoint.KICKING ? config.kickingVelocityRPS : setpoint.getRps();
         setKickerVelocity(targetRps);
     }

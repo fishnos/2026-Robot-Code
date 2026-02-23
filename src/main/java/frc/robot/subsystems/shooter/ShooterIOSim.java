@@ -75,8 +75,8 @@ public class ShooterIOSim implements ShooterIO {
         // Initialize feedforward controllers with config values
         flywheelFeedforward = new SimpleMotorFeedforward(config.flywheelKS, config.flywheelKV, config.flywheelKA);
 
-        // Initialize hood position to starting angle (config gives rotations)
-        hoodSim.setState(config.hoodStartingAngleRotations * 2 * Math.PI, 0);
+        // Initialize hood position to starting angle (config gives degrees)
+        hoodSim.setState(Math.toRadians(config.hoodStartingAngleDegrees), 0);
 
         // Initialize turret position to starting angle (config gives degrees)
         double turretStartRad = Math.toRadians(config.turretStartingAngleDeg);
@@ -162,9 +162,9 @@ public class ShooterIOSim implements ShooterIO {
             return;
         }
         // Clamp angle within software limits
-        double clampedAngle = MathUtil.clamp(angleRotations,
-            config.hoodMinAngleRotations,
-            config.hoodMaxAngleRotations);
+        double minRot = config.hoodMinAngleDegrees / 360.0;
+        double maxRot = config.hoodMaxAngleDegrees / 360.0;
+        double clampedAngle = MathUtil.clamp(angleRotations, minRot, maxRot);
         hoodFeedback.setSetpoint(clampedAngle * (2 * Math.PI));
         isHoodClosedLoop = true;
     }

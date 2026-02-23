@@ -15,7 +15,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.RobotState;
@@ -443,18 +443,9 @@ public class Superstructure extends SubsystemBase {
 
     /**
      * Checks if all mechanisms are at their setpoints and ready to shoot.
-     * Requires swerve to be in nominal ranged rotation, shooter to be ready,
-     * and robot to be within valid shooting distance.
+     * Uses shot impact error as the sole readiness metric.
      */
     private boolean isReadyForShot() {
-        boolean swerveReady = 
-            Math.abs(robotState.getFieldRelativeSpeeds().omegaRadiansPerSecond) < MAX_ANGULAR_VELOCITY_DURING_SHOT_RAD_PER_SEC &&
-            Math.hypot(
-                robotState.getFieldRelativeSpeeds().vxMetersPerSecond,
-                robotState.getFieldRelativeSpeeds().vyMetersPerSecond
-            ) < MAX_TRANSLATIONAL_VELOCITY_DURING_SHOT_METERS_PER_SEC;
-        Logger.recordOutput("Superstructure/swerveReady", swerveReady);
-        
         double actualHood = shooter.getHoodAngleRotations();
         double actualTurret = shooter.getTurretAngleRotations();
         double actualFlywheel = shooter.getFlywheelVelocityRotationsPerSec();
@@ -472,15 +463,8 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/actualLanding", actualLanding);
         Logger.recordOutput("Superstructure/setpointLanding", setpointLanding);
         Logger.recordOutput("Superstructure/impactErrorMeters", impactErrorMeters);
-        
-        // Check if within valid shooting distance
-        double distance = cachedShotData.effectiveDistance();
-        boolean withinShotDistance = distance >= shooter.getMinShotDistFromShooterMeters() 
-                                  && distance <= shooter.getMaxShotDistFromShooterMeters();
-        
-        Logger.recordOutput("Superstructure/withinShotDistance", withinShotDistance);
 
-        return swerveReady && shooterReady && withinShotDistance;
+        return shooterReady;
     }
 
     /**
@@ -542,7 +526,7 @@ public class Superstructure extends SubsystemBase {
         Translation3d shooterPosition = robotPose.plus(new Transform3d(new Pose3d(), shooter.getShooterRelativePose())).getTranslation();
         
         ChassisSpeeds speeds = robotState.getFieldRelativeSpeeds();
-        InterpolatingMatrixTreeMap<Double, N2, N1> lerpTable = shooter.getLerpTable();
+        InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable = shooter.getLerpTable();
         double lcomp = latencyCompensationSeconds.get();
         DoubleUnaryOperator rpsToExitVelocity = shooter::calculateShotExitVelocityMetersPerSec;
         DoubleUnaryOperator rpsToSpinRateRadPerSec =

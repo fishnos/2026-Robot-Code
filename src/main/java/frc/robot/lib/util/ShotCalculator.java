@@ -6,10 +6,8 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.math.numbers.N3;
 import java.util.function.DoubleUnaryOperator;
-
-import frc.robot.lib.util.ballistics.BallisticsPhysics;
 
 public class ShotCalculator {
 
@@ -27,7 +25,7 @@ public class ShotCalculator {
         Translation3d targetLocation,
         Translation3d shooterPosition, 
         ChassisSpeeds fieldRelativeSpeeds,
-        InterpolatingMatrixTreeMap<Double, N2, N1> lerpTable,
+        InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable,
         double latencyCompensationSeconds,
         DoubleUnaryOperator rpsToExitVelocity,
         DoubleUnaryOperator rpsToSpinRateRadPerSec,
@@ -46,29 +44,12 @@ public class ShotCalculator {
         double shotFlightTime = 0.0;
         double targetX = targetLocation.getX();
         double targetY = targetLocation.getY();
-        double targetHeight = targetLocation.getZ();
         
         // Iterate to converge (robot frame: shot velocity is relative to robot, target appears to move)
         for (int i = 0; i < 30; i++) {
             
-            // Get shooter settings for current distance estimate
-            double hoodAngleRotations = lerpTable.get(shooterDistanceToTarget).get(0, 0);
-            double flywheelRPS = lerpTable.get(shooterDistanceToTarget).get(1, 0);
-            double exitVelocity = rpsToExitVelocity.applyAsDouble(flywheelRPS);
-            double launchAngle = hoodAngleRotations * 2 * Math.PI; // Convert to radians
-            
-            double shooterHeight = shooterPosition.getZ();
-            double deltaHeight = targetHeight - shooterHeight;
-
-            double spinRateRadPerSec = rpsToSpinRateRadPerSec.applyAsDouble(flywheelRPS);
-            shotFlightTime = BallisticsPhysics.estimateFlightTime(
-                shooterDistanceToTarget,
-                launchAngle,
-                exitVelocity,
-                shooterHeight,
-                shooterHeight + deltaHeight,
-                spinRateRadPerSec
-            );
+            // Get shooter flight time for current distance estimate
+            shotFlightTime = lerpTable.get(shooterDistanceToTarget).get(2, 0);
             
             // In robot frame, target appears to move. Predict where it will appear to be
             // Use total shooter velocity (includes tangential component from omega)
@@ -95,13 +76,13 @@ public class ShotCalculator {
         double shooterAngleToTarget = Math.atan2(targetY - shooterPosition.getY(), targetX - shooterPosition.getX());
         
         // Get final settings for this distance
-        double hoodAngleRotations = lerpTable.get(shooterDistanceToTarget).get(0, 0);
+        double hoodAngleDegrees = lerpTable.get(shooterDistanceToTarget).get(0, 0);
         double flywheelVelocityRPS = lerpTable.get(shooterDistanceToTarget).get(1, 0);
         double exitVelocity = rpsToExitVelocity.applyAsDouble(flywheelVelocityRPS);
         
         return new ShotData(
             new Rotation2d(shooterAngleToTarget),
-            new Rotation2d(hoodAngleRotations * 2 * Math.PI),
+            Rotation2d.fromDegrees(hoodAngleDegrees),
             flywheelVelocityRPS,
             exitVelocity,
             shotFlightTime,
