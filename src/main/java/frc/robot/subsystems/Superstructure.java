@@ -105,8 +105,12 @@ public class Superstructure extends SubsystemBase {
     private boolean hasStartedShooting = false;
     private double lastAlternatingIntakeToggleTime = 0;
     
-    // Cached shot data - calculated once per periodic cycle
+    // Cached shot data for mechanism control after applying guards.
     private ShotData cachedShotData;
+    // Most recent raw shot calculation before guards.
+    private ShotData mostRecentShotData;
+    // Last shot calculation whose effective distance was inside configured min/max bounds.
+    private ShotData lastInRangeShotData;
     private ShotReadinessData cachedShotReadinessData = new ShotReadinessData(
         new Translation3d(),
         new Translation3d(),
@@ -142,9 +146,22 @@ public class Superstructure extends SubsystemBase {
     public void periodic() {
         latencyCompensationSeconds.setDefault(shooter.getLatencyCompensationSeconds());
 
-        // Calculate shot data once per cycle - all methods use this cached value
-        cachedShotData = calculateShotData();
+        // Calculate raw shot data once per cycle, then apply close-shot guard for mechanism setpoints.
+        mostRecentShotData = calculateShotData();
+        double minShotDistance = shooter.getMinShotDistFromShooterMeters();
+        double maxShotDistance = shooter.getMaxShotDistFromShooterMeters();
+        if (isDistanceInRange(mostRecentShotData.effectiveDistance(), minShotDistance, maxShotDistance)) {
+            lastInRangeShotData = mostRecentShotData;
+        }
+        cachedShotData = selectShotDataWithMinDistanceGuard(
+            mostRecentShotData,
+            lastInRangeShotData,
+            minShotDistance
+        );
         Logger.recordOutput("Superstructure/shotData", cachedShotData);
+        Logger.recordOutput("Superstructure/rawShotData", mostRecentShotData);
+        Logger.recordOutput("Superstructure/usingCloseShotGuard", cachedShotData != mostRecentShotData);
+        Logger.recordOutput("Superstructure/hasLastInRangeShotData", lastInRangeShotData != null);
         cachedShotReadinessData = calculateShotReadinessData();
         logShotReadinessData(cachedShotReadinessData);
         
@@ -425,11 +442,10 @@ public class Superstructure extends SubsystemBase {
         double impactErrorMeters = actualLanding.toTranslation2d()
             .getDistance(setpointLanding.toTranslation2d());
         boolean shooterReady = impactErrorMeters <= SHOT_IMPACT_TOLERANCE_METERS;
-        double effectiveDistance = cachedShotData.effectiveDistance();
+        double effectiveDistance = mostRecentShotData.effectiveDistance();
         double minShotDistance = shooter.getMinShotDistFromShooterMeters();
         double maxShotDistance = shooter.getMaxShotDistFromShooterMeters();
-        boolean distanceInRange =
-            effectiveDistance >= minShotDistance && effectiveDistance <= maxShotDistance;
+        boolean distanceInRange = isDistanceInRange(effectiveDistance, minShotDistance, maxShotDistance);
         boolean readyForShot = isShotReady(
             impactErrorMeters,
             SHOT_IMPACT_TOLERANCE_METERS,
@@ -470,9 +486,33 @@ public class Superstructure extends SubsystemBase {
         double maxShotDistanceMeters
     ) {
         boolean impactWithinTolerance = impactErrorMeters <= shotImpactToleranceMeters;
-        boolean distanceInRange =
-            effectiveDistanceMeters >= minShotDistanceMeters && effectiveDistanceMeters <= maxShotDistanceMeters;
+        boolean distanceInRange = isDistanceInRange(
+            effectiveDistanceMeters,
+            minShotDistanceMeters,
+            maxShotDistanceMeters
+        );
         return impactWithinTolerance && distanceInRange;
+    }
+
+    static boolean isDistanceInRange(
+        double effectiveDistanceMeters,
+        double minShotDistanceMeters,
+        double maxShotDistanceMeters
+    ) {
+        return effectiveDistanceMeters >= minShotDistanceMeters
+            && effectiveDistanceMeters <= maxShotDistanceMeters;
+    }
+
+    static ShotData selectShotDataWithMinDistanceGuard(
+        ShotData mostRecentShotData,
+        ShotData lastInRangeShotData,
+        double minShotDistanceMeters
+    ) {
+        boolean shotIsTooClose = mostRecentShotData.effectiveDistance() < minShotDistanceMeters;
+        if (shotIsTooClose && lastInRangeShotData != null) {
+            return lastInRangeShotData;
+        }
+        return mostRecentShotData;
     }
 
     /**
