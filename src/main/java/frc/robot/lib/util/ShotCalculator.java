@@ -32,9 +32,23 @@ public class ShotCalculator {
         Translation2d shooterOffsetFromRobotCenter,
         Rotation2d robotHeading
     ) {
-        // Total shooter velocity in field frame (linear only)
-        double shooterVxField = fieldRelativeSpeeds.vxMetersPerSecond;
-        double shooterVyField = fieldRelativeSpeeds.vyMetersPerSecond;
+        // Total shooter velocity in field frame (linear + tangential from robot omega).
+        double omega = fieldRelativeSpeeds.omegaRadiansPerSecond;
+        double dx = shooterOffsetFromRobotCenter.getX();
+        double dy = shooterOffsetFromRobotCenter.getY();
+
+        // Tangential velocity in robot frame from omega x r.
+        double tangentialVxRobot = -omega * dy;
+        double tangentialVyRobot = omega * dx;
+
+        // Rotate tangential component into field frame.
+        double cosHeading = robotHeading.getCos();
+        double sinHeading = robotHeading.getSin();
+        double tangentialVxField = tangentialVxRobot * cosHeading - tangentialVyRobot * sinHeading;
+        double tangentialVyField = tangentialVxRobot * sinHeading + tangentialVyRobot * cosHeading;
+
+        double shooterVxField = fieldRelativeSpeeds.vxMetersPerSecond + tangentialVxField;
+        double shooterVyField = fieldRelativeSpeeds.vyMetersPerSecond + tangentialVyField;
         
 
         // Iteratively solve for correct distance and flight time (robot reference frame approach)
