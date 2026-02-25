@@ -80,6 +80,7 @@ public class SwerveDrive extends SubsystemBase {
     public enum DesiredOmegaOverrideState {
         NONE,
         RANGED_ROTATION,
+        RANGED_ROTATION_CAPPED,
         CAPPED,
         SNAPPED,
     }
@@ -88,6 +89,8 @@ public class SwerveDrive extends SubsystemBase {
         NONE,
         RANGED_NOMINAL,
         RANGED_RETURNING,
+        RANGED_CAPPED_NOMINAL,
+        RANGED_CAPPED_RETURNING,
         CAPPED,
         SNAPPED_NOMINAL,
         SNAPPED_RETURNING,
@@ -130,6 +133,11 @@ public class SwerveDrive extends SubsystemBase {
     private Command currentPathCommand = null;
     private FollowPath.Builder followPathBuilder;
 
+    enum RotationRangeFrame {
+        ACCUMULATED_UNBOUNDED,
+        WRAPPED_ONE_TURN
+    }
+
     // Omega override rotation
     private double rotationRangeMinAbsRad = -Math.PI;
     private double rotationRangeMaxAbsRad = Math.PI;
@@ -139,6 +147,8 @@ public class SwerveDrive extends SubsystemBase {
     private static final double OMEGA_OVERRIDE_CONTROLLER_MAX_VELOCITY_FACTOR = 0.6;
     private static final double RANGED_ROTATION_BUFFER_RAD = Math.toRadians(15.0); // Buffer to prevent oscillation at boundaries
     private boolean hasWarnedInvalidBufferedRotationRange = false;
+    private boolean hasWarnedInvalidAccumulatedRotationRange = false;
+    private boolean hasWarnedInvalidWrappedRotationRange = false;
 
     private boolean shouldOverrideOmega = false;
     private double omegaOverride = 0.0;
@@ -488,7 +498,20 @@ public class SwerveDrive extends SubsystemBase {
                 currentOmegaOverrideState = resolveRangedRotationState(
                     previousOmegaOverrideState,
                     isWithinRange,
-                    isWithinNominalRange
+                    isWithinNominalRange,
+                    false
+                );
+                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinRange", isWithinRange);
+                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinNominalRange", isWithinNominalRange);
+                break;
+            case RANGED_ROTATION_CAPPED:
+                isWithinRange = isWithinRotationRange();
+                isWithinNominalRange = isWithinRotationRange(getRangedRotationNominalBufferRadians());
+                currentOmegaOverrideState = resolveRangedRotationState(
+                    previousOmegaOverrideState,
+                    isWithinRange,
+                    isWithinNominalRange,
+                    true
                 );
                 Logger.recordOutput("SwerveDrive/rangedRotation/isWithinRange", isWithinRange);
                 Logger.recordOutput("SwerveDrive/rangedRotation/isWithinNominalRange", isWithinNominalRange);
@@ -551,10 +574,16 @@ public class SwerveDrive extends SubsystemBase {
                 handleNoneOmegaOverrideState();
                 break;
             case RANGED_NOMINAL:
-                handleRangedRotationNominalOmegaOverrideState();
+                handleRangedRotationNominalOmegaOverrideState(false);
                 break;
             case RANGED_RETURNING:
-                handleRangedRotationReturningOmegaOverrideState();
+                handleRangedRotationReturningOmegaOverrideState(false);
+                break;
+            case RANGED_CAPPED_NOMINAL:
+                handleRangedRotationNominalOmegaOverrideState(true);
+                break;
+            case RANGED_CAPPED_RETURNING:
+                handleRangedRotationReturningOmegaOverrideState(true);
                 break;
             case CAPPED:
                 handleCappedOmegaOverrideState();
@@ -687,24 +716,29 @@ public class SwerveDrive extends SubsystemBase {
         previousOmegaOverrideState = CurrentOmegaOverrideState.NONE;
     }
     
-    private void handleRangedRotationOmegaOverrideState(boolean shouldReturnToRange) {
+    private void handleRangedRotationOmegaOverrideState(boolean shouldReturnToRange, boolean shouldCapOmegaVelocity) {
         shouldOverrideOmega = true;
-        shouldOverrideOmegaVelocityCap = false;
+        shouldOverrideOmegaVelocityCap = shouldCapOmegaVelocity;
         omegaOverride = shouldReturnToRange
             ? calculateReturnToRangeOmega()
             : limitOmegaForRange(lastUnoverriddenOmega);
         Logger.recordOutput("SwerveDrive/rangedRotation/shouldReturnToRange", shouldReturnToRange);
+        Logger.recordOutput("SwerveDrive/rangedRotation/shouldCapOmegaVelocity", shouldCapOmegaVelocity);
         Logger.recordOutput("SwerveDrive/rangedRotation/omegaOverride", omegaOverride);
     }
 
-    private void handleRangedRotationNominalOmegaOverrideState() {
-        handleRangedRotationOmegaOverrideState(false);
-        previousOmegaOverrideState = CurrentOmegaOverrideState.RANGED_NOMINAL;
+    private void handleRangedRotationNominalOmegaOverrideState(boolean shouldCapOmegaVelocity) {
+        handleRangedRotationOmegaOverrideState(false, shouldCapOmegaVelocity);
+        previousOmegaOverrideState = shouldCapOmegaVelocity
+            ? CurrentOmegaOverrideState.RANGED_CAPPED_NOMINAL
+            : CurrentOmegaOverrideState.RANGED_NOMINAL;
     }
     
-    private void handleRangedRotationReturningOmegaOverrideState() {
-        handleRangedRotationOmegaOverrideState(true);
-        previousOmegaOverrideState = CurrentOmegaOverrideState.RANGED_RETURNING;
+    private void handleRangedRotationReturningOmegaOverrideState(boolean shouldCapOmegaVelocity) {
+        handleRangedRotationOmegaOverrideState(true, shouldCapOmegaVelocity);
+        previousOmegaOverrideState = shouldCapOmegaVelocity
+            ? CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING
+            : CurrentOmegaOverrideState.RANGED_RETURNING;
     }
 
     private void handleSnappedOmegaOverrideState() {
@@ -791,15 +825,36 @@ public class SwerveDrive extends SubsystemBase {
         boolean isWithinRange,
         boolean isWithinNominalRange
     ) {
-        boolean wasReturning = previousOmegaOverrideState == CurrentOmegaOverrideState.RANGED_RETURNING;
+        return resolveRangedRotationState(
+            previousOmegaOverrideState,
+            isWithinRange,
+            isWithinNominalRange,
+            false
+        );
+    }
+
+    static CurrentOmegaOverrideState resolveRangedRotationState(
+        CurrentOmegaOverrideState previousOmegaOverrideState,
+        boolean isWithinRange,
+        boolean isWithinNominalRange,
+        boolean shouldCapOmegaVelocity
+    ) {
+        CurrentOmegaOverrideState nominalState = shouldCapOmegaVelocity
+            ? CurrentOmegaOverrideState.RANGED_CAPPED_NOMINAL
+            : CurrentOmegaOverrideState.RANGED_NOMINAL;
+        CurrentOmegaOverrideState returningState = shouldCapOmegaVelocity
+            ? CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING
+            : CurrentOmegaOverrideState.RANGED_RETURNING;
+        boolean wasReturning = previousOmegaOverrideState == CurrentOmegaOverrideState.RANGED_RETURNING
+            || previousOmegaOverrideState == CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING;
         if (wasReturning) {
             return isWithinNominalRange
-                ? CurrentOmegaOverrideState.RANGED_NOMINAL
-                : CurrentOmegaOverrideState.RANGED_RETURNING;
+                ? nominalState
+                : returningState;
         }
         return isWithinRange
-            ? CurrentOmegaOverrideState.RANGED_NOMINAL
-            : CurrentOmegaOverrideState.RANGED_RETURNING;
+            ? nominalState
+            : returningState;
     }
 
     /**
@@ -807,7 +862,7 @@ public class SwerveDrive extends SubsystemBase {
      * @param buffer The buffer in radians to constrict the range by (applied to both min and max)
      */
     private boolean isWithinRotationRange(double buffer) {
-        double current = RobotState.getInstance().getAccumulatedYaw().getRadians();
+        double current = RobotState.getInstance().getAccumulatedYawRadians();
         double min = rotationRangeMinAbsRad + buffer;
         double max = rotationRangeMaxAbsRad - buffer;
 
@@ -833,7 +888,7 @@ public class SwerveDrive extends SubsystemBase {
      * moving towards a boundary.
      */
     private double limitOmegaForRange(double desiredOmega) {
-        double current = RobotState.getInstance().getAccumulatedYaw().getRadians();
+        double current = RobotState.getInstance().getAccumulatedYawRadians();
         double currentOmega = RobotState.getInstance().getYawVelocityRadPerSec();
 
         // Use padded range bounds (constricted by buffer)
@@ -888,7 +943,7 @@ public class SwerveDrive extends SubsystemBase {
      * Uses an internal buffer to target slightly inside the range to prevent oscillation at boundaries.
      */
     private double calculateReturnToRangeOmega() {
-        double current = RobotState.getInstance().getAccumulatedYaw().getRadians();
+        double current = RobotState.getInstance().getAccumulatedYawRadians();
         double min = rotationRangeMinAbsRad;
         double max = rotationRangeMaxAbsRad;
         
@@ -953,37 +1008,174 @@ public class SwerveDrive extends SubsystemBase {
         cancelPathCommand();
     }
 
-    public void setRotationRange(Rotation2d min, Rotation2d max) {
-        setRotationRangeOffsetDegrees(min.getDegrees(), max.getDegrees());
-    }
-
-    public void setRotationRangeOffsetDegrees(double minOffsetDeg, double maxOffsetDeg) {
-        if (minOffsetDeg > maxOffsetDeg) {
-            double temp = minOffsetDeg;
-            minOffsetDeg = maxOffsetDeg;
-            maxOffsetDeg = temp;
+    public void setRotationRangeAccumulatedDegrees(double minAbsDeg, double maxAbsDeg) {
+        AccumulatedRotationRangeResolution resolution = resolveAccumulatedRotationRangeDegrees(
+            minAbsDeg,
+            maxAbsDeg
+        );
+        if (resolution.swappedInputs()) {
+            if (!hasWarnedInvalidAccumulatedRotationRange) {
+                DriverStation.reportWarning(
+                    "SwerveDrive accumulated rotation bounds were reversed. Swapping min/max.",
+                    false
+                );
+                hasWarnedInvalidAccumulatedRotationRange = true;
+            }
+        } else {
+            hasWarnedInvalidAccumulatedRotationRange = false;
         }
 
-        double accumulatedYawDeg = RobotState.getInstance().getAccumulatedYaw().getDegrees();
-        double turnAnchorDeg = Math.floor(accumulatedYawDeg / 360.0) * 360.0;
+        applyAbsoluteRotationRangeDegrees(
+            resolution.minAbsDeg(),
+            resolution.maxAbsDeg(),
+            RotationRangeFrame.ACCUMULATED_UNBOUNDED
+        );
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMinDeg", minAbsDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMaxDeg", maxAbsDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", resolution.minAbsDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", resolution.maxAbsDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/swappedInputs", resolution.swappedInputs());
+        Logger.recordOutput("SwerveDrive/rotationRange/referenceDeg", Double.NaN);
+        Logger.recordOutput("SwerveDrive/rotationRange/turnShift", 0L);
+    }
 
-        double baseMinDeg = turnAnchorDeg + minOffsetDeg;
-        double baseMaxDeg = turnAnchorDeg + maxOffsetDeg;
-        double midpointDeg = (baseMinDeg + baseMaxDeg) / 2.0;
-        long nearestTurnShift = Math.round((accumulatedYawDeg - midpointDeg) / 360.0);
-        double absoluteMinDeg = baseMinDeg + nearestTurnShift * 360.0;
-        double absoluteMaxDeg = baseMaxDeg + nearestTurnShift * 360.0;
+    public void setRotationRangeWrappedDegrees(double minWrappedDeg, double maxWrappedDeg) {
+        double wrappedReferenceDeg = normalizeWrappedDegrees(
+            RobotState.getInstance().getEstimatedPose().getRotation().getDegrees()
+        );
+        WrappedRotationRangeResolution resolution = resolveWrappedRotationRangeDegrees(
+            minWrappedDeg,
+            maxWrappedDeg,
+            wrappedReferenceDeg
+        );
 
-        rotationRangeMinAbsRad = Math.toRadians(absoluteMinDeg);
-        rotationRangeMaxAbsRad = Math.toRadians(absoluteMaxDeg);
+        if (resolution.swappedInputs()) {
+            if (!hasWarnedInvalidWrappedRotationRange) {
+                DriverStation.reportWarning(
+                    "SwerveDrive wrapped rotation bounds were reversed after normalization. Swapping min/max.",
+                    false
+                );
+                hasWarnedInvalidWrappedRotationRange = true;
+            }
+        } else {
+            hasWarnedInvalidWrappedRotationRange = false;
+        }
 
+        applyAbsoluteRotationRangeDegrees(
+            resolution.absoluteRange().minAbsDeg(),
+            resolution.absoluteRange().maxAbsDeg(),
+            RotationRangeFrame.WRAPPED_ONE_TURN
+        );
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMinDeg", minWrappedDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMaxDeg", maxWrappedDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/normalizedMinDeg", resolution.normalizedMinDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/normalizedMaxDeg", resolution.normalizedMaxDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", resolution.absoluteRange().minAbsDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", resolution.absoluteRange().maxAbsDeg());
+        Logger.recordOutput("SwerveDrive/rotationRange/swappedInputs", resolution.swappedInputs());
+        Logger.recordOutput("SwerveDrive/rotationRange/referenceDeg", wrappedReferenceDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/turnShift", resolution.absoluteRange().turnShift());
+    }
+
+    private void applyAbsoluteRotationRangeDegrees(
+        double minAbsDeg,
+        double maxAbsDeg,
+        RotationRangeFrame rotationRangeFrame
+    ) {
+        rotationRangeMinAbsRad = Math.toRadians(minAbsDeg);
+        rotationRangeMaxAbsRad = Math.toRadians(maxAbsDeg);
+        
         Logger.recordOutput("SwerveDrive/rotationRange/min", Rotation2d.fromRadians(rotationRangeMinAbsRad));
         Logger.recordOutput("SwerveDrive/rotationRange/max", Rotation2d.fromRadians(rotationRangeMaxAbsRad));
-        Logger.recordOutput("SwerveDrive/rotationRange/minOffsetDeg", minOffsetDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/maxOffsetDeg", maxOffsetDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", absoluteMinDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", absoluteMaxDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/turnAnchorDeg", turnAnchorDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/frame", rotationRangeFrame.ordinal());
+    }
+
+    record AbsoluteRotationRange(
+        double minAbsDeg,
+        double maxAbsDeg,
+        double midpointDeg,
+        long turnShift
+    ) {}
+
+    record AccumulatedRotationRangeResolution(
+        double minAbsDeg,
+        double maxAbsDeg,
+        boolean swappedInputs
+    ) {}
+
+    record WrappedRotationRangeResolution(
+        double normalizedMinDeg,
+        double normalizedMaxDeg,
+        boolean swappedInputs,
+        AbsoluteRotationRange absoluteRange
+    ) {}
+
+    static WrappedRotationRangeResolution resolveWrappedRotationRangeDegrees(
+        double minWrappedDeg,
+        double maxWrappedDeg,
+        double referenceDeg
+    ) {
+        double normalizedMinDeg = normalizeWrappedDegrees(minWrappedDeg);
+        double normalizedMaxDeg = normalizeWrappedDegrees(maxWrappedDeg);
+        boolean swappedInputs = false;
+        if (normalizedMinDeg > normalizedMaxDeg) {
+            swappedInputs = true;
+            double temp = normalizedMinDeg;
+            normalizedMinDeg = normalizedMaxDeg;
+            normalizedMaxDeg = temp;
+        }
+        AbsoluteRotationRange absoluteRange = resolveAbsoluteRotationRangeDegrees(
+            normalizedMinDeg,
+            normalizedMaxDeg,
+            referenceDeg
+        );
+        return new WrappedRotationRangeResolution(
+            normalizedMinDeg,
+            normalizedMaxDeg,
+            swappedInputs,
+            absoluteRange
+        );
+    }
+
+    static AccumulatedRotationRangeResolution resolveAccumulatedRotationRangeDegrees(
+        double minAbsDeg,
+        double maxAbsDeg
+    ) {
+        boolean swappedInputs = false;
+        if (minAbsDeg > maxAbsDeg) {
+            swappedInputs = true;
+            double temp = minAbsDeg;
+            minAbsDeg = maxAbsDeg;
+            maxAbsDeg = temp;
+        }
+        return new AccumulatedRotationRangeResolution(minAbsDeg, maxAbsDeg, swappedInputs);
+    }
+
+    static AbsoluteRotationRange resolveAbsoluteRotationRangeDegrees(
+        double minDeg,
+        double maxDeg,
+        double referenceDeg
+    ) {
+        if (minDeg > maxDeg) {
+            double temp = minDeg;
+            minDeg = maxDeg;
+            maxDeg = temp;
+        }
+        double midpointDeg = (minDeg + maxDeg) / 2.0;
+        long nearestTurnShift = Math.round((referenceDeg - midpointDeg) / 360.0);
+        double absoluteMinDeg = minDeg + nearestTurnShift * 360.0;
+        double absoluteMaxDeg = maxDeg + nearestTurnShift * 360.0;
+        return new AbsoluteRotationRange(
+            absoluteMinDeg,
+            absoluteMaxDeg,
+            (absoluteMinDeg + absoluteMaxDeg) / 2.0,
+            nearestTurnShift
+        );
+    }
+
+    static double normalizeWrappedDegrees(double angleDeg) {
+        double normalized = MathUtil.inputModulus(angleDeg, -180.0, 180.0);
+        return Math.abs(normalized - 180.0) < 1e-9 ? -180.0 : normalized;
     }
 
     public void setSnapTargetAngle(Rotation2d angle) {

@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,6 +47,33 @@ class SuperstructureShotReadinessTest {
     }
 
     @Test
+    void isShotReady_falseWhenDistanceBoundsAreReversed() {
+        boolean ready = Superstructure.isShotReady(0.05, 0.3, 4.0, 6.0, 2.0);
+        assertFalse(ready);
+    }
+
+    @Test
+    void isShotReady_falseWhenImpactErrorIsNotFinite() {
+        assertFalse(Superstructure.isShotReady(Double.NaN, 0.3, 4.0, 2.0, 6.0));
+        assertFalse(Superstructure.isShotReady(Double.POSITIVE_INFINITY, 0.3, 4.0, 2.0, 6.0));
+    }
+
+    @Test
+    void isDistanceInRange_matchesBoundaryAndOutsideBehavior() {
+        assertTrue(Superstructure.isDistanceInRange(2.0, 2.0, 6.0));
+        assertTrue(Superstructure.isDistanceInRange(4.0, 2.0, 6.0));
+        assertTrue(Superstructure.isDistanceInRange(6.0, 2.0, 6.0));
+        assertFalse(Superstructure.isDistanceInRange(1.99, 2.0, 6.0));
+        assertFalse(Superstructure.isDistanceInRange(6.01, 2.0, 6.0));
+    }
+
+    @Test
+    void isDistanceInRange_falseForReversedBoundsAndNaNDistance() {
+        assertFalse(Superstructure.isDistanceInRange(4.0, 6.0, 2.0));
+        assertFalse(Superstructure.isDistanceInRange(Double.NaN, 2.0, 6.0));
+    }
+
+    @Test
     void selectShotDataWithMinDistanceGuard_usesLastInRangeWhenTooClose() {
         ShotData mostRecentTooClose = shotData(1.5);
         ShotData lastInRange = shotData(2.5);
@@ -87,6 +115,20 @@ class SuperstructureShotReadinessTest {
     }
 
     @Test
+    void selectShotDataWithMinDistanceGuard_keepsMostRecentAtExactMinimumDistance() {
+        ShotData mostRecentAtMinimum = shotData(2.0);
+        ShotData lastInRange = shotData(2.5);
+
+        ShotData selected = Superstructure.selectShotDataWithMinDistanceGuard(
+            mostRecentAtMinimum,
+            lastInRange,
+            2.0
+        );
+
+        assertSame(mostRecentAtMinimum, selected);
+    }
+
+    @Test
     void isLastInRangeShotDataValid_falseWhenTimestampIsNotFinite() {
         assertFalse(Superstructure.isLastInRangeShotDataValid(10.0, Double.NaN, 1.0));
         assertFalse(Superstructure.isLastInRangeShotDataValid(10.0, Double.NEGATIVE_INFINITY, 1.0));
@@ -101,6 +143,124 @@ class SuperstructureShotReadinessTest {
     @Test
     void isLastInRangeShotDataValid_falseWhenShotAgeExceedsMaxAge() {
         assertFalse(Superstructure.isLastInRangeShotDataValid(10.0, 8.9, 1.0));
+    }
+
+    @Test
+    void isLastInRangeShotDataValid_currentBehaviorTreatsFutureTimestampAsValid() {
+        assertTrue(Superstructure.isLastInRangeShotDataValid(10.0, 10.2, 1.0));
+    }
+
+    @Test
+    void isLastInRangeShotDataValid_falseWhenMaxAgeIsNegative() {
+        assertFalse(Superstructure.isLastInRangeShotDataValid(10.0, 10.0, -0.1));
+    }
+
+    @Test
+    void calculateTurretRotationMargins_usesMeasuredTravelMinusBuffer() {
+        Superstructure.TurretRotationMargins margins = Superstructure.calculateTurretRotationMargins(
+            10.0,
+            -40.0,
+            80.0,
+            20.0
+        );
+
+        assertEquals(30.0, margins.marginTowardMinDeg(), 1e-9);
+        assertEquals(50.0, margins.marginTowardMaxDeg(), 1e-9);
+        assertTrue(margins.valid());
+    }
+
+    @Test
+    void calculateTurretRotationMargins_clampsExhaustedSideToZeroAndRemainsValidWhenOppositeSideHasTravel() {
+        Superstructure.TurretRotationMargins margins = Superstructure.calculateTurretRotationMargins(
+            -30.0,
+            -40.0,
+            80.0,
+            20.0
+        );
+
+        assertEquals(0.0, margins.marginTowardMinDeg(), 1e-9);
+        assertEquals(90.0, margins.marginTowardMaxDeg(), 1e-9);
+        assertTrue(margins.valid());
+    }
+
+    @Test
+    void calculateTurretRotationMargins_zeroRemainingMarginOnOneSideIsValid() {
+        Superstructure.TurretRotationMargins margins = Superstructure.calculateTurretRotationMargins(
+            -20.0,
+            -40.0,
+            80.0,
+            20.0
+        );
+
+        assertEquals(0.0, margins.marginTowardMinDeg(), 1e-9);
+        assertEquals(80.0, margins.marginTowardMaxDeg(), 1e-9);
+        assertTrue(margins.valid());
+    }
+
+    @Test
+    void calculateTurretRotationMargins_marksInvalidWhenBufferedTravelIsExhaustedOnBothSides() {
+        Superstructure.TurretRotationMargins margins = Superstructure.calculateTurretRotationMargins(
+            -35.0,
+            -40.0,
+            -30.0,
+            10.0
+        );
+
+        assertEquals(0.0, margins.marginTowardMinDeg(), 1e-9);
+        assertEquals(0.0, margins.marginTowardMaxDeg(), 1e-9);
+        assertFalse(margins.valid());
+    }
+
+    @Test
+    void calculateTurretRotationMargins_negativeBufferExpandsMargins() {
+        Superstructure.TurretRotationMargins margins = Superstructure.calculateTurretRotationMargins(
+            0.0,
+            -30.0,
+            50.0,
+            -5.0
+        );
+
+        assertEquals(35.0, margins.marginTowardMinDeg(), 1e-9);
+        assertEquals(55.0, margins.marginTowardMaxDeg(), 1e-9);
+        assertTrue(margins.valid());
+    }
+
+    @Test
+    void calculateAccumulatedYawRotationRange_appliesMinMaxMarginsAroundYawWithCorrectSigns() {
+        Superstructure.AccumulatedYawRotationRange range = Superstructure.calculateAccumulatedYawRotationRange(
+            300.0,
+            40.0,
+            55.0
+        );
+
+        assertEquals(245.0, range.minAbsDeg(), 1e-9);
+        assertEquals(340.0, range.maxAbsDeg(), 1e-9);
+    }
+
+    @Test
+    void calculateAccumulatedYawRotationRange_supportsLargeAccumulatedYawValues() {
+        Superstructure.AccumulatedYawRotationRange range = Superstructure.calculateAccumulatedYawRotationRange(
+            1080.0,
+            120.0,
+            90.0
+        );
+
+        assertEquals(990.0, range.minAbsDeg(), 1e-9);
+        assertEquals(1200.0, range.maxAbsDeg(), 1e-9);
+    }
+
+    @Test
+    void calculateAccumulatedYawRotationRange_asymmetricTurretHeadroomMatchesExpectedYawBounds() {
+        // Example: turret range [-90, 90], current turret +80 -> toward min=170, toward max=10.
+        // Robot yaw should be allowed in [yaw-10, yaw+170].
+        Superstructure.AccumulatedYawRotationRange range = Superstructure.calculateAccumulatedYawRotationRange(
+            0.0,
+            170.0,
+            10.0
+        );
+
+        assertEquals(-10.0, range.minAbsDeg(), 1e-9);
+        assertEquals(170.0, range.maxAbsDeg(), 1e-9);
     }
 
     private static ShotData shotData(double effectiveDistanceMeters) {

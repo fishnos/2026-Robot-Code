@@ -253,6 +253,16 @@ public class RobotState {
         return Rotation2d.fromRadians(accumulatedYawRad);
     }
 
+    @AutoLogOutput(key = "RobotState/accumulatedYawRad")
+    public double getAccumulatedYawRadians() {
+        return accumulatedYawRad;
+    }
+
+    @AutoLogOutput(key = "RobotState/accumulatedYawDeg")
+    public double getAccumulatedYawDegrees() {
+        return Math.toDegrees(accumulatedYawRad);
+    }
+
     public ChassisSpeeds getRobotRelativeSpeeds() {
         return lastRobotRelativeSpeeds;
     }

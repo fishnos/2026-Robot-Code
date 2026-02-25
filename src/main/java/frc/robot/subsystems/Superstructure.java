@@ -90,9 +90,9 @@ public class Superstructure extends SubsystemBase {
     private static final double ALTERNATING_INTAKE_TOGGLE_SECONDS = 1;
     private static final double BALLS_PER_SECOND = 12.0; // Balls per second to visualize
 
-    private static final double SWERVE_ROTATION_MARGIN_DEG = 20.0; // Margin for swerve rotation range (degrees)
+    private static final double TURRET_ROTATION_BUFFER_DEG = 20.0;
     private static final double MAX_TRANSLATIONAL_VELOCITY_DURING_SHOT_METERS_PER_SEC = 2.5;
-    private static final double MAX_ANGULAR_VELOCITY_DURING_SHOT_RAD_PER_SEC = 0.8;
+    private static final double MAX_ANGULAR_VELOCITY_DURING_SHOT_RAD_PER_SEC = 3;
     private static final double SHOT_IMPACT_TOLERANCE_METERS = 0.3;
     private static final double LAST_IN_RANGE_SHOT_MAX_AGE_SECONDS = 1.0;
     private static final double BUMP_MAX_VELOCITY_METERS_PER_SEC = 1.8;
@@ -102,6 +102,7 @@ public class Superstructure extends SubsystemBase {
     private double lastBallVisualizedTime = 0;
     private boolean hasStartedShooting = false;
     private double lastAlternatingIntakeToggleTime = 0;
+    private boolean hasWarnedInvalidTurretRotationMargins = false;
     
     // Cached shot data for mechanism control after applying guards.
     private ShotData cachedShotData;
@@ -138,6 +139,17 @@ public class Superstructure extends SubsystemBase {
         Translation3d targetLocation,
         ShotKinematicsUtil.ShooterKinematics shooterKinematics,
         InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable
+    ) {}
+
+    record TurretRotationMargins(
+        double marginTowardMinDeg,
+        double marginTowardMaxDeg,
+        boolean valid
+    ) {}
+
+    record AccumulatedYawRotationRange(
+        double minAbsDeg,
+        double maxAbsDeg
     ) {}
 
     private Superstructure() {
@@ -377,7 +389,7 @@ public class Superstructure extends SubsystemBase {
     }
 
     private void applyDynamicShotOutputs(HopperSetpoint hopperSetpoint) {
-        updateSwerveRotationRange();
+        updateSwerveRotationRangeForShotStates();
         applyShotMotionCaps();
         applyShooterAndHopperSetpoints(
             HoodSetpoint.DYNAMIC,
@@ -385,7 +397,7 @@ public class Superstructure extends SubsystemBase {
             FlywheelSetpoint.DYNAMIC,
             hopperSetpoint
         );
-        swerveDrive.setDesiredOmegaOverrideState(SwerveDrive.DesiredOmegaOverrideState.CAPPED);
+        swerveDrive.setDesiredOmegaOverrideState(SwerveDrive.DesiredOmegaOverrideState.RANGED_ROTATION_CAPPED);
         swerveDrive.setDesiredTranslationOverrideState(SwerveDrive.DesiredTranslationOverrideState.CAPPED);
     }
 
@@ -554,26 +566,84 @@ public class Superstructure extends SubsystemBase {
     }
 
     /**
-     * Updates the swerve rotation range based on turret limits and target shot angle.
-     * This ensures the robot heading keeps the turret within its physical limits.
+     * Updates swerve rotation bounds for shot-oriented states from live turret remaining travel.
+     * This keeps robot yaw in a range that avoids turret wrap maneuvers.
      */
-    private void updateSwerveRotationRange() {
-        double targetFieldYawDeg = cachedShotData.targetFieldYaw().getDegrees();
-        
-        // Get turret physical limits
+    private void updateSwerveRotationRangeForShotStates() {
+        double accumulatedYawDeg = robotState.getAccumulatedYawDegrees();
+        double turretCurrentDeg = shooter.getTurretAngleRotations() * 360.0;
         double turretMinDeg = shooter.getTurretMinAngleDeg();
         double turretMaxDeg = shooter.getTurretMaxAngleDeg();
-        
-        // Calculate robot rotation range
-        // Robot rotation = target field yaw - turret angle
-        // So: turret angle = target field yaw - robot rotation
-        // For turret to be within [turretMin, turretMax]:
-        // Robot rotation must be within [targetYaw - turretMax, targetYaw - turretMin]
-        // Add margin to ensure we stay well within bounds
-        double robotRotationMinOffsetDeg = targetFieldYawDeg - (turretMaxDeg - SWERVE_ROTATION_MARGIN_DEG);
-        double robotRotationMaxOffsetDeg = targetFieldYawDeg - (turretMinDeg + SWERVE_ROTATION_MARGIN_DEG);
-        
-        swerveDrive.setRotationRangeOffsetDegrees(robotRotationMinOffsetDeg, robotRotationMaxOffsetDeg);
+
+        TurretRotationMargins turretMargins = calculateTurretRotationMargins(
+            turretCurrentDeg,
+            turretMinDeg,
+            turretMaxDeg,
+            TURRET_ROTATION_BUFFER_DEG
+        );
+        Logger.recordOutput("Superstructure/shootingRange/turretCurrentDeg", turretCurrentDeg);
+        Logger.recordOutput("Superstructure/shootingRange/turretMinDeg", turretMinDeg);
+        Logger.recordOutput("Superstructure/shootingRange/turretMaxDeg", turretMaxDeg);
+        Logger.recordOutput("Superstructure/shootingRange/marginTowardMinDeg", turretMargins.marginTowardMinDeg());
+        Logger.recordOutput("Superstructure/shootingRange/marginTowardMaxDeg", turretMargins.marginTowardMaxDeg());
+        Logger.recordOutput("Superstructure/shootingRange/marginsValid", turretMargins.valid());
+
+        if (!turretMargins.valid()) {
+            if (!hasWarnedInvalidTurretRotationMargins) {
+                edu.wpi.first.wpilibj.DriverStation.reportWarning(
+                    "Superstructure shooting rotation margins have no buffered travel on either side. Keeping prior ranged bounds.",
+                    false
+                );
+                hasWarnedInvalidTurretRotationMargins = true;
+            }
+            return;
+        }
+        hasWarnedInvalidTurretRotationMargins = false;
+
+        AccumulatedYawRotationRange accumulatedRange = calculateAccumulatedYawRotationRange(
+            accumulatedYawDeg,
+            turretMargins.marginTowardMinDeg(),
+            turretMargins.marginTowardMaxDeg()
+        );
+        Logger.recordOutput("Superstructure/shootingRange/accumulatedYawDeg", accumulatedYawDeg);
+        Logger.recordOutput("Superstructure/shootingRange/minAbsDeg", accumulatedRange.minAbsDeg());
+        Logger.recordOutput("Superstructure/shootingRange/maxAbsDeg", accumulatedRange.maxAbsDeg());
+
+        swerveDrive.setRotationRangeAccumulatedDegrees(
+            accumulatedRange.minAbsDeg(),
+            accumulatedRange.maxAbsDeg()
+        );
+    }
+
+    static TurretRotationMargins calculateTurretRotationMargins(
+        double turretCurrentDeg,
+        double turretMinDeg,
+        double turretMaxDeg,
+        double turretBufferDeg
+    ) {
+        // One-sided headroom is still useful: clamp exhausted sides to zero so we can keep updating
+        // the opposite yaw bound instead of freezing the entire ranged-rotation window.
+        double marginTowardMinDeg = Math.max(0.0, turretCurrentDeg - turretMinDeg - turretBufferDeg);
+        double marginTowardMaxDeg = Math.max(0.0, turretMaxDeg - turretCurrentDeg - turretBufferDeg);
+        return new TurretRotationMargins(
+            marginTowardMinDeg,
+            marginTowardMaxDeg,
+            marginTowardMinDeg > 0.0 || marginTowardMaxDeg > 0.0
+        );
+    }
+
+    static AccumulatedYawRotationRange calculateAccumulatedYawRotationRange(
+        double accumulatedYawDeg,
+        double marginTowardMinDeg,
+        double marginTowardMaxDeg
+    ) {
+        // targetFieldYaw = accumulatedYaw + turretCurrent
+        // robotYaw bounds are [targetFieldYaw - turretMax, targetFieldYaw - turretMin]
+        // equivalently [accumulatedYaw - marginTowardMax, accumulatedYaw + marginTowardMin]
+        return new AccumulatedYawRotationRange(
+            accumulatedYawDeg - marginTowardMaxDeg,
+            accumulatedYawDeg + marginTowardMinDeg
+        );
     }
 
     // Target suppliers for shooter - these use cached shot data
