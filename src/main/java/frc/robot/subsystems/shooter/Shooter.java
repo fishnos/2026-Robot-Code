@@ -234,6 +234,10 @@ public class Shooter extends SubsystemBase {
 
         int minK = (int) Math.ceil((minDeg - requestedDeg) / 360.0);
         int maxK = (int) Math.floor((maxDeg - requestedDeg) / 360.0);
+        int currentBranchK = (int) Math.round((currentDeg - requestedDeg) / 360.0);
+        double currentBranchTargetDeg = requestedDeg + currentBranchK * 360.0;
+        double currentBranchClampedDeg = MathUtil.clamp(currentBranchTargetDeg, minDeg, maxDeg);
+        boolean isCurrentBranchOutsideLimits = currentBranchClampedDeg != currentBranchTargetDeg;
 
         if (minK <= maxK) {
             double bestAngleDeg = requestedDeg + (minK * 360.0);
@@ -245,6 +249,13 @@ public class Shooter extends SubsystemBase {
                 if (candidateDistanceDeg < bestDistanceDeg) {
                     bestDistanceDeg = candidateDistanceDeg;
                     bestAngleDeg = candidateDeg;
+                }
+            }
+
+            if (isCurrentBranchOutsideLimits) {
+                double clampedCurrentBranchDistanceDeg = Math.abs(currentBranchClampedDeg - currentDeg);
+                if (clampedCurrentBranchDistanceDeg < bestDistanceDeg) {
+                    bestAngleDeg = currentBranchClampedDeg;
                 }
             }
 

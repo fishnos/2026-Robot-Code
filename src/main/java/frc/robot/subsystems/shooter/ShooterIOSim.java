@@ -129,12 +129,33 @@ public class ShooterIOSim implements ShooterIO {
         turretSim.update(dt);
         flywheelSim.update(dt);
 
+        // Mirror Talon soft-limit behavior in sim so turret cannot run past configured bounds.
+        double turretMinRot = config.turretMinAngleDeg / 360.0;
+        double turretMaxRot = config.turretMaxAngleDeg / 360.0;
+        double turretPositionRot = turretSim.getAngularPositionRotations();
+        double turretVelocityRotPerSec = turretSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
+        SoftLimitedState turretLimitedState = applySoftLimit(
+            turretPositionRot,
+            turretVelocityRotPerSec,
+            turretMinRot,
+            turretMaxRot
+        );
+        if (
+            turretLimitedState.positionRotations() != turretPositionRot
+                || turretLimitedState.velocityRotationsPerSec() != turretVelocityRotPerSec
+        ) {
+            turretSim.setState(
+                turretLimitedState.positionRotations() * (2 * Math.PI),
+                turretLimitedState.velocityRotationsPerSec() * (2 * Math.PI)
+            );
+        }
+
         inputs.hoodAngleRotations = hoodSim.getAngularPositionRotations();
         inputs.hoodVelocityRotationsPerSec = hoodSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
         inputs.hoodAppliedVolts = hoodSim.getInputVoltage();
 
-        inputs.turretAngleRotations = turretSim.getAngularPositionRotations();
-        inputs.turretVelocityRotationsPerSec = turretSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
+        inputs.turretAngleRotations = turretLimitedState.positionRotations();
+        inputs.turretVelocityRotationsPerSec = turretLimitedState.velocityRotationsPerSec();
         inputs.turretAppliedVolts = turretSim.getInputVoltage();
 
         inputs.flywheelVelocityRotationsPerSec = flywheelSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
@@ -274,4 +295,26 @@ public class ShooterIOSim implements ShooterIO {
     public void disableFlywheelEStop() {
         isFlywheelEStopped = false;
     }
+
+    static SoftLimitedState applySoftLimit(
+        double positionRotations,
+        double velocityRotationsPerSec,
+        double minRotations,
+        double maxRotations
+    ) {
+        double clampedPositionRotations = MathUtil.clamp(positionRotations, minRotations, maxRotations);
+
+        if (clampedPositionRotations <= minRotations && velocityRotationsPerSec < 0.0) {
+            return new SoftLimitedState(clampedPositionRotations, 0.0);
+        }
+        if (clampedPositionRotations >= maxRotations && velocityRotationsPerSec > 0.0) {
+            return new SoftLimitedState(clampedPositionRotations, 0.0);
+        }
+        return new SoftLimitedState(clampedPositionRotations, velocityRotationsPerSec);
+    }
+
+    static record SoftLimitedState(
+        double positionRotations,
+        double velocityRotationsPerSec
+    ) {}
 }

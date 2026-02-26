@@ -66,4 +66,18 @@ class ShooterTurretResolutionTest {
         assertEquals(-100.0, resolution.targetAngleDeg(), EPS);
         assertEquals(-100.0, resolution.unwindTargetDeg(), EPS);
     }
+
+    @Test
+    // Near a soft limit, avoid large wrapped jumps by clamping the current branch when it is closer.
+    void resolveTurretTargetDegrees_prefersClampedCurrentBranchWhenMuchCloserThanWrappedCandidate() {
+        Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
+            -94.0,
+            -447.0,
+            -450.0,
+            630.0
+        );
+
+        assertFalse(resolution.usedUnwindFallback());
+        assertEquals(-450.0, resolution.targetAngleDeg(), EPS);
+    }
 }

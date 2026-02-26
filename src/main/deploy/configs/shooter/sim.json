@@ -108,7 +108,7 @@
   "turretKA": 0.0,
   "turretKP": 25.0,
   "turretKI": 0.0,
-  "turretKD": 0.1,
+  "turretKD": 0.0,
   "turretMotorToOutputShaftRatio": 100.0,
   "turretStartingAngleDeg": 180.0,
   "turretMinAngleDeg": -450.0,
