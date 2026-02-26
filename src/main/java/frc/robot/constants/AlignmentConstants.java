@@ -6,7 +6,8 @@ import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import frc.robot.lib.BLine.FlippingUtil;
+import frc.robot.constants.ZoneConstants.RectangleZone;
+import frc.robot.lib.util.ZoneUtil;
 
 public final class AlignmentConstants {
     private AlignmentConstants() {}
@@ -24,8 +25,8 @@ public final class AlignmentConstants {
             private Left() {}
 
             public static final Pair<Translation2d, Translation2d> BOUNDS = new Pair<>(
-                new Translation2d(1.500, 7.640),
-                new Translation2d(3.456, 3.350)
+                ZoneConstants.Tower.LEFT.cornerA(),
+                ZoneConstants.Tower.LEFT.cornerB()
             );
 
             public static final Pose2d INTERMEDIATE_WAYPOINT = new Pose2d(
@@ -44,8 +45,8 @@ public final class AlignmentConstants {
             private Right() {}
 
             public static final Pair<Translation2d, Translation2d> BOUNDS = new Pair<>(
-                new Translation2d(1.500, 7.640),
-                new Translation2d(3.456, 0.418)
+                ZoneConstants.Tower.RIGHT.cornerA(),
+                ZoneConstants.Tower.RIGHT.cornerB()
             );
 
             public static final Pose2d INTERMEDIATE_WAYPOINT = new Pose2d(
@@ -62,18 +63,12 @@ public final class AlignmentConstants {
         }
 
         public static boolean isWithinBounds(Pose2d robotPose, Pair<Translation2d, Translation2d> bounds) {
-            if (Constants.shouldFlipPath()) {
-                robotPose = FlippingUtil.flipFieldPose(robotPose);
-            }
-            
-            double minX = Math.min(bounds.getFirst().getX(), bounds.getSecond().getX());
-            double maxX = Math.max(bounds.getFirst().getX(), bounds.getSecond().getX());
-            double minY = Math.min(bounds.getFirst().getY(), bounds.getSecond().getY());
-            double maxY = Math.max(bounds.getFirst().getY(), bounds.getSecond().getY());
-
-            boolean isWithinBounds = 
-                robotPose.getX() >= minX && robotPose.getX() <= maxX &&
-                    robotPose.getY() >= minY && robotPose.getY() <= maxY;
+            RectangleZone zone = new RectangleZone(
+                "alignment_bounds",
+                bounds.getFirst(),
+                bounds.getSecond()
+            );
+            boolean isWithinBounds = ZoneUtil.isPoseInZone(robotPose, zone, true);
 
             Logger.recordOutput("AlignmentConstants/isWithinBounds", isWithinBounds);
             Logger.recordOutput("AlignmentConstants/robotPose", robotPose);
