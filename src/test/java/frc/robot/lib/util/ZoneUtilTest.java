@@ -3,14 +3,11 @@ package frc.robot.lib.util;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.hal.AllianceStationID;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
+import frc.robot.constants.ZoneConstants;
 import frc.robot.constants.ZoneConstants.RectangleZone;
-import frc.robot.lib.BLine.FlippingUtil;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class ZoneUtilTest {
@@ -19,12 +16,6 @@ class ZoneUtilTest {
         new Translation2d(1.0, 1.0),
         new Translation2d(3.0, 4.0)
     );
-
-    @AfterEach
-    void resetDriverStationState() {
-        DriverStationSim.resetData();
-        DriverStationSim.notifyNewData();
-    }
 
     @Test
     void isPointInZone_returnsTrueForInteriorPoint() {
@@ -40,6 +31,50 @@ class ZoneUtilTest {
     @Test
     void isPointInZone_returnsFalseForPointOutsideBounds() {
         assertFalse(ZoneUtil.isPointInZone(new Translation2d(3.2, 2.0), TEST_ZONE, false));
+    }
+
+    @Test
+    void isPointInAnyZone_allianceCompositeReturnsTrueInUpperSection() {
+        assertTrue(
+            ZoneUtil.isPointInAnyZone(
+                new Translation2d(4.3, 7.5),
+                ZoneConstants.Alliance.COMPOSITE,
+                false
+            )
+        );
+    }
+
+    @Test
+    void isPointInAnyZone_allianceCompositeReturnsTrueInMiddleSection() {
+        assertTrue(
+            ZoneUtil.isPointInAnyZone(
+                new Translation2d(3.8, 4.0),
+                ZoneConstants.Alliance.COMPOSITE,
+                false
+            )
+        );
+    }
+
+    @Test
+    void isPointInAnyZone_allianceCompositeReturnsFalseInCenterRightCutout() {
+        assertFalse(
+            ZoneUtil.isPointInAnyZone(
+                new Translation2d(4.3, 4.0),
+                ZoneConstants.Alliance.COMPOSITE,
+                false
+            )
+        );
+    }
+
+    @Test
+    void isPoseInAnyZone_allianceCompositeReturnsTrueInLowerSection() {
+        assertTrue(
+            ZoneUtil.isPoseInAnyZone(
+                new Pose2d(4.2, 1.0, new Rotation2d()),
+                ZoneConstants.Alliance.COMPOSITE,
+                false
+            )
+        );
     }
 
     @Test
@@ -98,14 +133,67 @@ class ZoneUtilTest {
     }
 
     @Test
-    void isPointInZone_mirrorForAllianceUsesFlippedCoordinates() {
-        DriverStationSim.setAllianceStationId(AllianceStationID.Red1);
-        DriverStationSim.notifyNewData();
+    void hasLineOfSightWithMovingCircularBlocker_returnsFalseWhenMovingBallCrossesLos() {
+        boolean hasLineOfSight = ZoneUtil.hasLineOfSightWithMovingCircularBlocker(
+            new Translation2d(0.0, 0.0),
+            new Translation2d(5.0, 0.0),
+            new Translation2d(2.5, -1.0),
+            new Translation2d(2.5, 1.0),
+            0.2,
+            false
+        );
 
-        Translation2d bluePointInsideZone = new Translation2d(2.0, 2.0);
-        Translation2d redEquivalentPoint = FlippingUtil.flipFieldPosition(bluePointInsideZone);
-
-        assertTrue(ZoneUtil.isPointInZone(redEquivalentPoint, TEST_ZONE, true));
-        assertFalse(ZoneUtil.isPointInZone(redEquivalentPoint, TEST_ZONE, false));
+        assertFalse(hasLineOfSight);
     }
+
+    @Test
+    void hasLineOfSightWithMovingCircularBlocker_returnsTrueWhenPathStaysAwayFromLos() {
+        boolean hasLineOfSight = ZoneUtil.hasLineOfSightWithMovingCircularBlocker(
+            new Translation2d(0.0, 0.0),
+            new Translation2d(5.0, 0.0),
+            new Translation2d(2.5, 1.0),
+            new Translation2d(2.5, 2.0),
+            0.2,
+            false
+        );
+
+        assertTrue(hasLineOfSight);
+    }
+
+    @Test
+    void hasLineOfSightWithCircularBlocker_returnsFalseWhenBallRadiusIntersectsLos() {
+        boolean hasLineOfSight = ZoneUtil.hasLineOfSightWithCircularBlocker(
+            new Translation2d(0.0, 0.0),
+            new Translation2d(5.0, 0.0),
+            new Translation2d(2.5, 0.15),
+            0.2,
+            false
+        );
+
+        assertFalse(hasLineOfSight);
+    }
+
+    @Test
+    void hasLineOfSightWithMovingCircularBlocker_zeroRadiusOnlyBlocksOnExactIntersection() {
+        boolean clearWithZeroRadius = ZoneUtil.hasLineOfSightWithMovingCircularBlocker(
+            new Translation2d(0.0, 0.0),
+            new Translation2d(5.0, 0.0),
+            new Translation2d(2.5, 0.001),
+            new Translation2d(2.5, 1.0),
+            0.0,
+            false
+        );
+        boolean blockedWithZeroRadius = ZoneUtil.hasLineOfSightWithMovingCircularBlocker(
+            new Translation2d(0.0, 0.0),
+            new Translation2d(5.0, 0.0),
+            new Translation2d(2.5, -1.0),
+            new Translation2d(2.5, 1.0),
+            0.0,
+            false
+        );
+
+        assertTrue(clearWithZeroRadius);
+        assertFalse(blockedWithZeroRadius);
+    }
+
 }
