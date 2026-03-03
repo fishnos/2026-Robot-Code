@@ -74,7 +74,7 @@ public class FieldConstants {
         public static final Translation3d hubCenter = new Translation3d(
                 Units.inchesToMeters(182.105),
                 Units.inchesToMeters(158.845),
-                Units.inchesToMeters(71.0)); // receded inside of the hub hood 
+                Units.inchesToMeters(72.0));
 
         public static final double sideLength = Units.inchesToMeters(47.5);
         public static final double topHeight = Units.inchesToMeters(44.25);

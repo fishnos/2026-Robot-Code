@@ -42,6 +42,12 @@ public final class ZoneConstants {
     public static final class Tower {
         private Tower() {}
 
+        public static final RectangleZone EXCLUSION = new RectangleZone(
+            "tower",
+            new Translation2d(0.959, 4.324),
+            new Translation2d(1.077, 3.156)
+        );
+
         public static final RectangleZone LEFT = new RectangleZone(
             "tower_left",
             new Translation2d(1.500, 7.640),
@@ -154,6 +160,7 @@ public final class ZoneConstants {
     }
 
     public static final Map<String, RectangleZone> ZONES = Map.ofEntries(
+        Map.entry(Tower.EXCLUSION.name(), Tower.EXCLUSION),
         Map.entry(Tower.LEFT.name(), Tower.LEFT),
         Map.entry(Tower.RIGHT.name(), Tower.RIGHT),
         Map.entry(Alliance.LOWER.name(), Alliance.LOWER),

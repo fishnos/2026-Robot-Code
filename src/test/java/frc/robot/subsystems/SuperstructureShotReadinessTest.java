@@ -352,7 +352,7 @@ class SuperstructureShotReadinessTest {
     }
 
     @Test
-    void isPassLineOfSightClear_checksBothHubCenters() {
+    void isPassLineOfSightClear_checksHubAndTowerBlockersWithMirroring() {
         Translation2d shooter = new Translation2d(0.0, 0.0);
         Translation2d target = new Translation2d(10.0, 0.0);
         RectangleZone clearHub = new RectangleZone(
@@ -370,6 +370,21 @@ class SuperstructureShotReadinessTest {
             new Translation2d(4.8, -0.2),
             new Translation2d(5.2, 0.2)
         );
+        RectangleZone clearTower = new RectangleZone(
+            "clear_tower",
+            new Translation2d(2.0, 1.0),
+            new Translation2d(3.0, 2.0)
+        );
+        RectangleZone clearFlippedTower = new RectangleZone(
+            "clear_flipped_tower",
+            new Translation2d(2.0, -2.0),
+            new Translation2d(3.0, -1.0)
+        );
+        RectangleZone blockingTower = new RectangleZone(
+            "blocking_tower",
+            new Translation2d(2.4, -0.2),
+            new Translation2d(2.8, 0.2)
+        );
 
         assertTrue(
             Superstructure.isPassLineOfSightClear(
@@ -377,6 +392,8 @@ class SuperstructureShotReadinessTest {
                 target,
                 clearHub,
                 clearFlippedHub,
+                clearTower,
+                clearFlippedTower,
                 0.12
             )
         );
@@ -386,6 +403,8 @@ class SuperstructureShotReadinessTest {
                 target,
                 blockingHub,
                 clearFlippedHub,
+                clearTower,
+                clearFlippedTower,
                 0.12
             )
         );
@@ -395,6 +414,79 @@ class SuperstructureShotReadinessTest {
                 target,
                 clearHub,
                 blockingHub,
+                clearTower,
+                clearFlippedTower,
+                0.12
+            )
+        );
+        assertFalse(
+            Superstructure.isPassLineOfSightClear(
+                shooter,
+                target,
+                clearHub,
+                clearFlippedHub,
+                blockingTower,
+                clearFlippedTower,
+                0.12
+            )
+        );
+        assertFalse(
+            Superstructure.isPassLineOfSightClear(
+                shooter,
+                target,
+                clearHub,
+                clearFlippedHub,
+                clearTower,
+                blockingTower,
+                0.12
+            )
+        );
+    }
+
+    @Test
+    void isHubLineOfSightClear_checksMirroredTowerBlockers() {
+        Translation2d shooter = new Translation2d(0.0, 0.0);
+        Translation2d target = new Translation2d(10.0, 0.0);
+        RectangleZone clearTower = new RectangleZone(
+            "clear_tower",
+            new Translation2d(2.0, 1.0),
+            new Translation2d(3.0, 2.0)
+        );
+        RectangleZone clearFlippedTower = new RectangleZone(
+            "clear_flipped_tower",
+            new Translation2d(2.0, -2.0),
+            new Translation2d(3.0, -1.0)
+        );
+        RectangleZone blockingTower = new RectangleZone(
+            "blocking_tower",
+            new Translation2d(2.4, -0.2),
+            new Translation2d(2.8, 0.2)
+        );
+
+        assertTrue(
+            Superstructure.isHubLineOfSightClear(
+                shooter,
+                target,
+                clearTower,
+                clearFlippedTower,
+                0.12
+            )
+        );
+        assertFalse(
+            Superstructure.isHubLineOfSightClear(
+                shooter,
+                target,
+                blockingTower,
+                clearFlippedTower,
+                0.12
+            )
+        );
+        assertFalse(
+            Superstructure.isHubLineOfSightClear(
+                shooter,
+                target,
+                clearTower,
+                blockingTower,
                 0.12
             )
         );

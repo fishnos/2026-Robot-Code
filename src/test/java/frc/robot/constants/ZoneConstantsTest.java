@@ -14,6 +14,7 @@ class ZoneConstantsTest {
 
     @Test
     void zones_containsTowerDefinitions() {
+        assertTrue(ZoneConstants.ZONES.containsKey("tower"));
         assertTrue(ZoneConstants.ZONES.containsKey("tower_left"));
         assertTrue(ZoneConstants.ZONES.containsKey("tower_right"));
         assertTrue(ZoneConstants.ZONES.containsKey("alliance_lower"));
@@ -37,6 +38,12 @@ class ZoneConstantsTest {
     void getZone_returnsHubExclusionZone() {
         ZoneConstants.RectangleZone zone = ZoneConstants.getZone("hub_exclusion").orElseThrow();
         assertEquals(ZoneConstants.Hub.EXCLUSION, zone);
+    }
+
+    @Test
+    void getZone_returnsTowerExclusionZone() {
+        ZoneConstants.RectangleZone zone = ZoneConstants.getZone("tower").orElseThrow();
+        assertEquals(ZoneConstants.Tower.EXCLUSION, zone);
     }
 
     @Test

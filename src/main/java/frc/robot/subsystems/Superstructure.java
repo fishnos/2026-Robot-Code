@@ -778,12 +778,27 @@ public class Superstructure extends SubsystemBase {
         boolean zoneAllowsTarget = isTargetAllowedInZone(zoneResolvedTarget, robotFieldZone);
         Translation3d targetLocation = getFieldTargetLocation(zoneResolvedTarget);
         boolean passingTarget = isPassingTarget(zoneResolvedTarget);
-        boolean lineOfSightClear = !passingTarget
-            || isPassLineOfSightClear(
-                shooterKinematics.shooterPosition().toTranslation2d(),
-                targetLocation.toTranslation2d(),
-                ZoneConstants.Hub.EXCLUSION,
-                flipRectangleZone(ZoneConstants.Hub.EXCLUSION),
+        Translation2d shooterPosition = shooterKinematics.shooterPosition().toTranslation2d();
+        Translation2d targetPosition = targetLocation.toTranslation2d();
+        RectangleZone hubZone = ZoneConstants.Hub.EXCLUSION;
+        RectangleZone flippedHubZone = flipRectangleZone(hubZone);
+        RectangleZone towerZone = ZoneConstants.Tower.EXCLUSION;
+        RectangleZone flippedTowerZone = flipRectangleZone(towerZone);
+        boolean lineOfSightClear = passingTarget
+            ? isPassLineOfSightClear(
+                shooterPosition,
+                targetPosition,
+                hubZone,
+                flippedHubZone,
+                towerZone,
+                flippedTowerZone,
+                config.passHubBlockerRadiusMeters
+            )
+            : isHubLineOfSightClear(
+                shooterPosition,
+                targetPosition,
+                towerZone,
+                flippedTowerZone,
                 config.passHubBlockerRadiusMeters
             );
 
@@ -855,20 +870,59 @@ public class Superstructure extends SubsystemBase {
         Translation2d passingTargetPosition,
         RectangleZone hubZone,
         RectangleZone flippedHubZone,
-        double hubBlockerRadiusMeters
+        RectangleZone towerZone,
+        RectangleZone flippedTowerZone,
+        double blockerRadiusMeters
     ) {
         return ZoneUtil.hasLineOfSightWithRectangularBlocker(
                 shooterPosition,
                 passingTargetPosition,
                 hubZone,
-                hubBlockerRadiusMeters,
+                blockerRadiusMeters,
                 false
             )
             && ZoneUtil.hasLineOfSightWithRectangularBlocker(
                 shooterPosition,
                 passingTargetPosition,
                 flippedHubZone,
-                hubBlockerRadiusMeters,
+                blockerRadiusMeters,
+                false
+            )
+            && ZoneUtil.hasLineOfSightWithRectangularBlocker(
+                shooterPosition,
+                passingTargetPosition,
+                towerZone,
+                blockerRadiusMeters,
+                false
+            )
+            && ZoneUtil.hasLineOfSightWithRectangularBlocker(
+                shooterPosition,
+                passingTargetPosition,
+                flippedTowerZone,
+                blockerRadiusMeters,
+                false
+            );
+    }
+
+    static boolean isHubLineOfSightClear(
+        Translation2d shooterPosition,
+        Translation2d hubTargetPosition,
+        RectangleZone towerZone,
+        RectangleZone flippedTowerZone,
+        double blockerRadiusMeters
+    ) {
+        return ZoneUtil.hasLineOfSightWithRectangularBlocker(
+                shooterPosition,
+                hubTargetPosition,
+                towerZone,
+                blockerRadiusMeters,
+                false
+            )
+            && ZoneUtil.hasLineOfSightWithRectangularBlocker(
+                shooterPosition,
+                hubTargetPosition,
+                flippedTowerZone,
+                blockerRadiusMeters,
                 false
             );
     }
