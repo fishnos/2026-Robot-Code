@@ -29,7 +29,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public enum HoodSetpoint {
-        HOME(Rotation2d.fromDegrees(45.0)),
+        HOME(Rotation2d.fromDegrees(70.0)),
         DYNAMIC(null);
 
         private final Rotation2d angle;
