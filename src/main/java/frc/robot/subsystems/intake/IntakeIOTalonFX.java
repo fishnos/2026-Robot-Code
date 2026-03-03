@@ -44,8 +44,8 @@ public class IntakeIOTalonFX implements IntakeIO {
     private final StatusSignal<Current> pivotTorqueCurrent;
     private final StatusSignal<Temperature> pivotTemperature;
 
-    private final VelocityVoltage rollerMotorRequest = new VelocityVoltage(0).withSlot(0);
-    private final MotionMagicVoltage pivotMotorRequest = new MotionMagicVoltage(0).withSlot(0);
+    private final VelocityVoltage rollerMotorRequest = new VelocityVoltage(0).withSlot(0).withEnableFOC(true);
+    private final MotionMagicVoltage pivotMotorRequest = new MotionMagicVoltage(0).withSlot(0).withEnableFOC(true);
 
     private final TalonFXConfiguration rollerConfig;
     private final TalonFXConfiguration pivotConfig;

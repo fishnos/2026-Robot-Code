@@ -67,10 +67,10 @@ public class ModuleIOTalonFX implements ModuleIO {
     private final StatusSignal<Temperature> steerTemperature;
 
     // private final VelocityTorqueCurrentFOC driveMotorRequest = new VelocityTorqueCurrentFOC(0).withSlot(0);
-    private final VelocityVoltage driveMotorRequest = new VelocityVoltage(0).withSlot(0);
+    private final VelocityVoltage driveMotorRequest = new VelocityVoltage(0).withSlot(0).withEnableFOC(true);
 
     // private final MotionMagicExpoTorqueCurrentFOC steerMotorRequest = new MotionMagicExpoTorqueCurrentFOC(0).withSlot(0);
-    private final PositionVoltage steerMotorRequest = new PositionVoltage(0).withSlot(0);
+    private final PositionVoltage steerMotorRequest = new PositionVoltage(0).withSlot(0).withEnableFOC(true);
 
     private final TorqueCurrentFOC torqueCurrentFOCRequest = new TorqueCurrentFOC(0);
 

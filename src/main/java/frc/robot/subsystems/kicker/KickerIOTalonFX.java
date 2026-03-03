@@ -33,7 +33,7 @@ public class KickerIOTalonFX implements KickerIO {
     private final StatusSignal<Current> kickerTorqueCurrent;
     private final StatusSignal<Temperature> kickerTemperature;
 
-    private final VelocityVoltage kickerMotorRequest = new VelocityVoltage(0).withSlot(0);
+    private final VelocityVoltage kickerMotorRequest = new VelocityVoltage(0).withSlot(0).withEnableFOC(true);
 
     private final TalonFXConfiguration kickerConfig;
 

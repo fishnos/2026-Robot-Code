@@ -33,7 +33,7 @@ public class HopperIOTalonFX implements HopperIO {
     private final StatusSignal<Current> hopperTorqueCurrent;
     private final StatusSignal<Temperature> hopperTemperature;
 
-    private final VelocityVoltage hopperMotorRequest = new VelocityVoltage(0).withSlot(0);
+    private final VelocityVoltage hopperMotorRequest = new VelocityVoltage(0).withSlot(0).withEnableFOC(true);
 
     private final TalonFXConfiguration hopperConfig;
 

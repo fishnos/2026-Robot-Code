@@ -35,7 +35,7 @@ public class ClimberIOTalonFX implements ClimberIO {
     private final StatusSignal<Current> climberTorqueCurrent;
     private final StatusSignal<Temperature> climberTemperature;
 
-    private final MotionMagicVoltage climberMotorRequest = new MotionMagicVoltage(0).withSlot(0);
+    private final MotionMagicVoltage climberMotorRequest = new MotionMagicVoltage(0).withSlot(0).withEnableFOC(true);
 
     private final ClimberConfig config;
     private final TalonFXConfiguration climberConfig;
