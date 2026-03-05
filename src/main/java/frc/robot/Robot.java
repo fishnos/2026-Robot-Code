@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.constants.Constants;
 import frc.robot.constants.FieldConstants;
 import frc.robot.lib.BLine.FollowPath;
+import frc.robot.lib.util.LoopCycleProfiler;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -31,6 +32,8 @@ import frc.robot.lib.BLine.FollowPath;
  * project.
  */
 public class Robot extends LoggedRobot {
+    private static final double SLOW_LOOP_WARNING_THRESHOLD_MS = 200.0;
+
     private Command m_autonomousCommand;
     private RobotContainer m_robotContainer;
 
@@ -111,6 +114,9 @@ public class Robot extends LoggedRobot {
      */
     @Override
     public void robotPeriodic() {
+        LoopCycleProfiler.beginCycle();
+
+        long schedulerStartNanos = LoopCycleProfiler.markStart();
         // Runs the Scheduler. This is responsible for polling buttons, adding
         // newly-scheduled
         // commands, running already-scheduled commands, removing finished or
@@ -119,9 +125,13 @@ public class Robot extends LoggedRobot {
         // robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
+        LoopCycleProfiler.endSection("Robot/CommandSchedulerRun", schedulerStartNanos);
 
+        long shotDistanceLogStartNanos = LoopCycleProfiler.markStart();
         Logger.recordOutput("Superstructure/shotData", RobotState.getInstance().getEstimatedPose().getTranslation().getDistance(FieldConstants.Hub.hubCenter.toTranslation2d()));
+        LoopCycleProfiler.endSection("Robot/SuperstructureShotDistanceLog", shotDistanceLogStartNanos);
 
+        LoopCycleProfiler.finishCycle(SLOW_LOOP_WARNING_THRESHOLD_MS);
     }
 
     /** This function is called once each time the robot enters Disabled mode. */
