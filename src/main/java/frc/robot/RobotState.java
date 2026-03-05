@@ -24,6 +24,8 @@ import org.littletonrobotics.junction.Logger;
 
 // TODO: Make it so that if it is tracking / shooting, the center of rotation for the robot is around the shooter's position
 public class RobotState {
+    private static final double OBSERVATION_LOG_PERIOD_SECONDS = 0.1;
+
     private static RobotState instance;
     public static RobotState getInstance() {
         if (instance == null) {
@@ -56,6 +58,8 @@ public class RobotState {
     private double lastEstimatedPoseUpdateTime = 0;
     private int visionObservationsAccepted = 0;
     private int visionObservationsRejected = 0;
+    private double lastOdometryObservationLogTimestampSeconds = Double.NEGATIVE_INFINITY;
+    private double lastVisionObservationLogTimestampSeconds = Double.NEGATIVE_INFINITY;
 
     private double lastGyroResetTime = Timer.getTimestamp();
 
@@ -122,12 +126,15 @@ public class RobotState {
             observation.yawVelocityRadPerSec()
         );
         
-        Logger.recordOutput("RobotState/odometry/timestamp", observation.timestampsSeconds());
-        Logger.recordOutput("RobotState/odometry/isGyroConnected", observation.isGyroConnected());
-        Logger.recordOutput("RobotState/odometry/modulePositions", observation.modulePositions());
-        Logger.recordOutput("RobotState/odometry/moduleStates", observation.moduleStates());
-        Logger.recordOutput("RobotState/odometry/gyroOrientation", observation.gyroOrientation());
-        Logger.recordOutput("RobotState/odometry/yawVelocityRadPerSec", observation.yawVelocityRadPerSec());
+        boolean shouldLogObservation = shouldLogOdometryObservation();
+        if (shouldLogObservation) {
+            Logger.recordOutput("RobotState/odometry/timestamp", observation.timestampsSeconds());
+            Logger.recordOutput("RobotState/odometry/isGyroConnected", observation.isGyroConnected());
+            Logger.recordOutput("RobotState/odometry/modulePositions", observation.modulePositions());
+            Logger.recordOutput("RobotState/odometry/moduleStates", observation.moduleStates());
+            Logger.recordOutput("RobotState/odometry/gyroOrientation", observation.gyroOrientation());
+            Logger.recordOutput("RobotState/odometry/yawVelocityRadPerSec", observation.yawVelocityRadPerSec());
+        }
 
         // update robotState member variables
         lastRobotRelativeSpeeds = kinematics.toChassisSpeeds(observation.moduleStates);
@@ -145,7 +152,9 @@ public class RobotState {
 
         // Reject odometry if robot is tilted too much
         boolean isTilted = getAngleToFloor().getDegrees() > robotStateConfig.maxTiltAngleDegrees;
-        Logger.recordOutput("RobotState/odometry/isTilted", isTilted);
+        if (shouldLogObservation) {
+            Logger.recordOutput("RobotState/odometry/isTilted", isTilted);
+        }
         if (isTilted) {
             // use old wheel positions
             swerveDrivePoseEstimator.updateWithTime(
@@ -180,42 +189,45 @@ public class RobotState {
     }
 
     public void addVisionObservation(VisionObservation observation) {
+        boolean shouldLogObservation = shouldLogVisionObservation();
         // If measurement is old enough to be outside the pose buffer's timespan, skip.
         try {
             if (poseBuffer.getInternalBuffer().lastKey() - robotStateConfig.poseBufferSizeSeconds > observation.timestampSeconds()) {
-                visionObservationsRejected++;
-                Logger.recordOutput("RobotState/vision/visionObservationsRejected", visionObservationsRejected);
+                incrementVisionRejectedCount();
+                if (shouldLogObservation) {
+                    logVisionObservationMetrics(null, observation.timestampSeconds(), false);
+                }
                 return;
             }
         } 
         
         catch (NoSuchElementException ex) {
-            visionObservationsRejected++;
-            Logger.recordOutput("RobotState/vision/visionObservationsRejected", visionObservationsRejected);
+            incrementVisionRejectedCount();
+            if (shouldLogObservation) {
+                logVisionObservationMetrics(null, observation.timestampSeconds(), false);
+            }
             return;
         }
 
         visionObservationsAccepted++;
 
-        Logger.recordOutput("RobotState/vision/stdDevTranslation", observation.visionMeasurementStdDevs().get(0,0));
-        Logger.recordOutput("RobotState/vision/stdDevRotation", observation.visionMeasurementStdDevs().get(2,0));
-        Logger.recordOutput("RobotState/vision/visionPose", observation.visionRobotPoseMeters());
-        Logger.recordOutput("RobotState/vision/visionObservationsAccepted", visionObservationsAccepted);
-        Logger.recordOutput("RobotState/vision/visionObservationsRejected", visionObservationsRejected);
-        Logger.recordOutput("RobotState/vision/visionLatency", Timer.getFPGATimestamp() - observation.timestampSeconds());
+        if (shouldLogObservation) {
+            logVisionObservationMetrics(observation, observation.timestampSeconds(), true);
+        }
 
-
+        boolean didResetGyro = false;
         if (DriverStation.isDisabled()
             && Timer.getTimestamp() - lastGyroResetTime > robotStateConfig.gyroResetTimeoutSeconds
             && observation.visionMeasurementStdDevs().get(2,0) < robotStateConfig.gyroResetMaxVisionRotationStdDev) {
                 resetPose(new Pose2d(getEstimatedPose().getTranslation(), observation.visionRobotPoseMeters().getRotation()));
                 lastGyroResetTime = Timer.getTimestamp();
-                
-                Logger.recordOutput("RobotState/vision/gyroReset", true);
-                Logger.recordOutput("RobotState/vision/gyroRestRotation", observation.visionRobotPoseMeters().getRotation());
-            
-        } else {
-            Logger.recordOutput("RobotState/vision/gyroReset", false);
+                didResetGyro = true;
+        }
+        if (shouldLogObservation || didResetGyro) {
+            logGyroResetStatus(
+                didResetGyro,
+                didResetGyro ? observation.visionRobotPoseMeters().getRotation() : null
+            );
         }
 
         swerveDrivePoseEstimator.addVisionMeasurement(observation.visionRobotPoseMeters(), observation.timestampSeconds(), observation.visionMeasurementStdDevs());
@@ -247,6 +259,50 @@ public class RobotState {
 
     public double getYawVelocityRadPerSec() {
         return lastYawVelocityRadPerSec;
+    }
+
+    private boolean shouldLogOdometryObservation() {
+        double now = Timer.getTimestamp();
+        if (now - lastOdometryObservationLogTimestampSeconds >= OBSERVATION_LOG_PERIOD_SECONDS) {
+            lastOdometryObservationLogTimestampSeconds = now;
+            return true;
+        }
+        return false;
+    }
+
+    private boolean shouldLogVisionObservation() {
+        double now = Timer.getTimestamp();
+        if (now - lastVisionObservationLogTimestampSeconds >= OBSERVATION_LOG_PERIOD_SECONDS) {
+            lastVisionObservationLogTimestampSeconds = now;
+            return true;
+        }
+        return false;
+    }
+
+    private void logVisionObservationMetrics(
+        VisionObservation observation,
+        double observationTimestampSeconds,
+        boolean includeObservationDetails
+    ) {
+        if (includeObservationDetails && observation != null) {
+            Logger.recordOutput("RobotState/vision/stdDevTranslation", observation.visionMeasurementStdDevs().get(0,0));
+            Logger.recordOutput("RobotState/vision/stdDevRotation", observation.visionMeasurementStdDevs().get(2,0));
+            Logger.recordOutput("RobotState/vision/visionPose", observation.visionRobotPoseMeters());
+        }
+        Logger.recordOutput("RobotState/vision/visionObservationsAccepted", visionObservationsAccepted);
+        Logger.recordOutput("RobotState/vision/visionObservationsRejected", visionObservationsRejected);
+        Logger.recordOutput("RobotState/vision/visionLatency", Timer.getFPGATimestamp() - observationTimestampSeconds);
+    }
+
+    private void incrementVisionRejectedCount() {
+        visionObservationsRejected++;
+    }
+
+    private void logGyroResetStatus(boolean didReset, Rotation2d rotation) {
+        Logger.recordOutput("RobotState/vision/gyroReset", didReset);
+        if (didReset && rotation != null) {
+            Logger.recordOutput("RobotState/vision/gyroRestRotation", rotation);
+        }
     }
 
     @AutoLogOutput(key = "RobotState/accumulatedYaw")

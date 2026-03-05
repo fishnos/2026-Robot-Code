@@ -24,6 +24,7 @@ public final class LoopCycleProfiler {
     private static long cycleStartNanos = System.nanoTime();
     private static long cycleIndex = 0;
     private static double lastWarningTimestampSeconds = Double.NEGATIVE_INFINITY;
+    private static double lastLoggedSlowCycleThresholdMs = Double.NaN;
 
     private LoopCycleProfiler() {
     }
@@ -49,7 +50,10 @@ public final class LoopCycleProfiler {
     public static void finishCycle(double slowCycleThresholdMs) {
         double totalMs = (System.nanoTime() - cycleStartNanos) * NANOS_TO_MILLIS;
         Logger.recordOutput("LoopProfiler/TotalMs", totalMs);
-        Logger.recordOutput("LoopProfiler/SlowCycleThresholdMs", slowCycleThresholdMs);
+        if (Double.compare(lastLoggedSlowCycleThresholdMs, slowCycleThresholdMs) != 0) {
+            Logger.recordOutput("LoopProfiler/SlowCycleThresholdMs", slowCycleThresholdMs);
+            lastLoggedSlowCycleThresholdMs = slowCycleThresholdMs;
+        }
 
         boolean isSlowCycle = totalMs >= slowCycleThresholdMs;
         Logger.recordOutput("LoopProfiler/IsSlowCycle", isSlowCycle);

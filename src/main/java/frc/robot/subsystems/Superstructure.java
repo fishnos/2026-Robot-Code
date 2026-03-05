@@ -241,7 +241,6 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/rawShotData", mostRecentShotData);
         Logger.recordOutput("Superstructure/usingCloseShotGuard", cachedShotData != mostRecentShotData);
         Logger.recordOutput("Superstructure/hasLastInRangeShotData", hasValidLastInRangeShotData);
-        Logger.recordOutput("Superstructure/lastInRangeShotMaxAgeSeconds", config.lastInRangeShotMaxAgeSeconds);
         Logger.recordOutput("Superstructure/lastInRangeShotAgeSeconds", nowSeconds - lastInRangeShotTimestampSeconds);
         LoopCycleProfiler.endSection("Superstructure/ShotComputation", shotComputationStartNanos);
 
@@ -862,8 +861,6 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/robotFieldZone", robotFieldZone.toString());
         Logger.recordOutput("Superstructure/targetLocation", targetLocation);
         Logger.recordOutput("Superstructure/passingTarget", passingTarget);
-        Logger.recordOutput("Superstructure/targetZoneAllowed", zoneAllowsTarget);
-        Logger.recordOutput("Superstructure/passLineOfSightClear", lineOfSightClear);
 
         return new ShotComputationContext(
             currentTargetState,

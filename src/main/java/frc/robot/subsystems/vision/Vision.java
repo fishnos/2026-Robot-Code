@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
 
 public class Vision extends SubsystemBase {
-    private static final double DETAILED_POSE_LOG_PERIOD_SECONDS = Double.MAX_VALUE;
+    private static final double DETAILED_POSE_LOG_PERIOD_SECONDS = 0.1;
     private static final double IMU_MODE_REFRESH_PERIOD_SECONDS = 0.1;
 
     private static Vision instance = null;
@@ -157,10 +157,6 @@ public class Vision extends SubsystemBase {
         }
 
         long cameraProcessingStartNanos = LoopCycleProfiler.markStart();
-        List<Pose3d> allTagPoses = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-        List<Pose3d> allRobotPoses = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-        List<Pose3d> allRobotPosesAccepted = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-        List<Pose3d> allRobotPosesRejected = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
         int totalAcceptedCount = 0;
         int totalRejectedCount = 0;
         int totalObservationCount = 0;
@@ -178,6 +174,9 @@ public class Vision extends SubsystemBase {
             List<Pose3d> robotPoses = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
             List<Pose3d> robotPosesAccepted = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
             List<Pose3d> robotPosesRejected = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
+            List<String> poseTypes = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
+            List<String> poseTypesAccepted = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
+            List<String> poseTypesRejected = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
             int acceptedCount = 0;
             int rejectedCount = 0;
 
@@ -232,12 +231,14 @@ public class Vision extends SubsystemBase {
                 // Add pose to log
                 if (shouldLogDetailedPoseArrays) {
                     robotPoses.add(observation.pose());
+                    poseTypes.add(observation.type().name());
                 }
                 if (rejectPose) {
                     rejectedCount++;
                     totalRejectedCount++;
                     if (shouldLogDetailedPoseArrays) {
                         robotPosesRejected.add(observation.pose());
+                        poseTypesRejected.add(observation.type().name());
                     }
                 }
 
@@ -276,6 +277,7 @@ public class Vision extends SubsystemBase {
                 totalAcceptedCount++;
                 if (shouldLogDetailedPoseArrays) {
                     robotPosesAccepted.add(observation.pose());
+                    poseTypesAccepted.add(observation.type().name());
                 }
 
                 // Send vision observation
@@ -305,10 +307,15 @@ public class Vision extends SubsystemBase {
                 Logger.recordOutput(
                     cameraTimingPrefix + "/RobotPosesRejected",
                     robotPosesRejected.toArray(new Pose3d[robotPosesRejected.size()]));
-                allTagPoses.addAll(tagPoses);
-                allRobotPoses.addAll(robotPoses);
-                allRobotPosesAccepted.addAll(robotPosesAccepted);
-                allRobotPosesRejected.addAll(robotPosesRejected);
+                Logger.recordOutput(
+                    cameraTimingPrefix + "/PoseTypes",
+                    poseTypes.toArray(new String[poseTypes.size()]));
+                Logger.recordOutput(
+                    cameraTimingPrefix + "/PoseTypesAccepted",
+                    poseTypesAccepted.toArray(new String[poseTypesAccepted.size()]));
+                Logger.recordOutput(
+                    cameraTimingPrefix + "/PoseTypesRejected",
+                    poseTypesRejected.toArray(new String[poseTypesRejected.size()]));
             }
 
             LoopCycleProfiler.endSection(cameraTimingPrefix + "/Total", perCameraStartNanos);
@@ -320,18 +327,6 @@ public class Vision extends SubsystemBase {
         Logger.recordOutput("Vision/Summary/PoseObservationCount", totalObservationCount);
         Logger.recordOutput("Vision/Summary/PoseAcceptedCount", totalAcceptedCount);
         Logger.recordOutput("Vision/Summary/PoseRejectedCount", totalRejectedCount);
-        if (shouldLogDetailedPoseArrays) {
-            Logger.recordOutput(
-                "Vision/Summary/TagPoses", allTagPoses.toArray(new Pose3d[allTagPoses.size()]));
-            Logger.recordOutput(
-                "Vision/Summary/RobotPoses", allRobotPoses.toArray(new Pose3d[allRobotPoses.size()]));
-            Logger.recordOutput(
-                "Vision/Summary/RobotPosesAccepted",
-                allRobotPosesAccepted.toArray(new Pose3d[allRobotPosesAccepted.size()]));
-            Logger.recordOutput(
-                "Vision/Summary/RobotPosesRejected",
-                allRobotPosesRejected.toArray(new Pose3d[allRobotPosesRejected.size()]));
-        }
         LoopCycleProfiler.endSection("Vision/SummaryLogging", summaryLogStartNanos);
 
         LoopCycleProfiler.endSection("Vision/PeriodicTotal", periodicStartNanos);

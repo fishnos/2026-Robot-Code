@@ -218,7 +218,7 @@ public class Shooter extends SubsystemBase {
         hoodSetpointRotations = clampedAngleRotations;
         Logger.recordOutput("Shooter/hoodSetpointDegrees", clampedAngleDeg);
         Logger.recordOutput("Shooter/angleSetpointRotations", clampedAngleRotations);
-        Logger.recordOutput("Shooter/rawSetpointRotations", clampedAngleRotations);
+        Logger.recordOutput("Shooter/rawSetpointRotations", angle.getRotations());
 
         shooterIO.setAngle(clampedAngleRotations);
     }

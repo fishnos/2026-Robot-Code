@@ -71,7 +71,9 @@ public final class AlignmentConstants {
             boolean isWithinBounds = ZoneUtil.isPoseInZone(robotPose, zone, true);
 
             Logger.recordOutput("AlignmentConstants/isWithinBounds", isWithinBounds);
-            Logger.recordOutput("AlignmentConstants/robotPose", robotPose);
+            if (Constants.VERBOSE_LOGGING_ENABLED) {
+                Logger.recordOutput("AlignmentConstants/robotPose", robotPose);
+            }
             return isWithinBounds;
         }
     }

@@ -384,7 +384,6 @@ public class SwerveDrive extends SubsystemBase {
         long inputReadStartNanos = LoopCycleProfiler.markStart();
         odometryLock.lock();
         try {
-            Logger.recordOutput("SwerveDrive/stateLockAcquired", true);
             gyroIO.updateInputs(gyroInputs);
             Logger.processInputs("SwerveDrive/gyro", gyroInputs);
 
@@ -426,7 +425,7 @@ public class SwerveDrive extends SubsystemBase {
         LoopCycleProfiler.endSection("SwerveDrive/ControlLoopConfigUpdates", configUpdateStartNanos);
 
         long odometryStartNanos = LoopCycleProfiler.markStart();
-        ArrayList<Pose2d> updatedPoses = new ArrayList<Pose2d>();
+        ArrayList<Pose2d> updatedPoses = Constants.VERBOSE_LOGGING_ENABLED ? new ArrayList<Pose2d>() : null;
 
         double[] odometryTimestampsSeconds = moduleInputs[0].odometryTimestampsSeconds;
         for (int i = 0; i < odometryTimestampsSeconds.length; i++) {
@@ -454,12 +453,16 @@ public class SwerveDrive extends SubsystemBase {
                 )
             );
 
-            updatedPoses.add(RobotState.getInstance().getEstimatedPose());
+            if (updatedPoses != null) {
+                updatedPoses.add(RobotState.getInstance().getEstimatedPose());
+            }
         }
 
-        Logger.recordOutput("SwerveDrive/updatedPoses", updatedPoses.toArray(new Pose2d[0]));
-        Logger.recordOutput("SwerveDrive/measuredModuleStates", moduleStates);
-        Logger.recordOutput("SwerveDrive/measuredModulePositions", modulePositions);
+        if (Constants.VERBOSE_LOGGING_ENABLED && updatedPoses != null) {
+            Logger.recordOutput("SwerveDrive/updatedPoses", updatedPoses.toArray(new Pose2d[0]));
+            Logger.recordOutput("SwerveDrive/measuredModuleStates", moduleStates);
+            Logger.recordOutput("SwerveDrive/measuredModulePositions", modulePositions);
+        }
         LoopCycleProfiler.endSection("SwerveDrive/Odometry", odometryStartNanos);
 
         // FSM processing
@@ -524,28 +527,10 @@ public class SwerveDrive extends SubsystemBase {
                 currentOmegaOverrideState = CurrentOmegaOverrideState.NONE;
                 break;
             case RANGED_ROTATION:
-                boolean isWithinRange = isWithinRotationRange();
-                boolean isWithinNominalRange = isWithinRotationRange(getRangedRotationNominalBufferRadians());
-                currentOmegaOverrideState = resolveRangedRotationState(
-                    previousOmegaOverrideState,
-                    isWithinRange,
-                    isWithinNominalRange,
-                    false
-                );
-                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinRange", isWithinRange);
-                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinNominalRange", isWithinNominalRange);
+                currentOmegaOverrideState = resolveAndLogRangedRotationState(false);
                 break;
             case RANGED_ROTATION_CAPPED:
-                isWithinRange = isWithinRotationRange();
-                isWithinNominalRange = isWithinRotationRange(getRangedRotationNominalBufferRadians());
-                currentOmegaOverrideState = resolveRangedRotationState(
-                    previousOmegaOverrideState,
-                    isWithinRange,
-                    isWithinNominalRange,
-                    true
-                );
-                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinRange", isWithinRange);
-                Logger.recordOutput("SwerveDrive/rangedRotation/isWithinNominalRange", isWithinNominalRange);
+                currentOmegaOverrideState = resolveAndLogRangedRotationState(true);
                 break;
             case CAPPED:
                 currentOmegaOverrideState = CurrentOmegaOverrideState.CAPPED;
@@ -832,6 +817,19 @@ public class SwerveDrive extends SubsystemBase {
         );
     }
 
+    private CurrentOmegaOverrideState resolveAndLogRangedRotationState(boolean shouldCapOmegaVelocity) {
+        boolean isWithinRange = isWithinRotationRange();
+        boolean isWithinNominalRange = isWithinRotationRange(getRangedRotationNominalBufferRadians());
+        Logger.recordOutput("SwerveDrive/rangedRotation/isWithinRange", isWithinRange);
+        Logger.recordOutput("SwerveDrive/rangedRotation/isWithinNominalRange", isWithinNominalRange);
+        return resolveRangedRotationState(
+            previousOmegaOverrideState,
+            isWithinRange,
+            isWithinNominalRange,
+            shouldCapOmegaVelocity
+        );
+    }
+
     static CurrentOmegaOverrideState resolveRangedRotationState(
         CurrentOmegaOverrideState previousOmegaOverrideState,
         boolean isWithinRange,
@@ -1042,13 +1040,15 @@ public class SwerveDrive extends SubsystemBase {
             resolution.maxAbsDeg(),
             RotationRangeFrame.ACCUMULATED_UNBOUNDED
         );
-        Logger.recordOutput("SwerveDrive/rotationRange/inputMinDeg", minAbsDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/inputMaxDeg", maxAbsDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", resolution.minAbsDeg());
-        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", resolution.maxAbsDeg());
-        Logger.recordOutput("SwerveDrive/rotationRange/swappedInputs", resolution.swappedInputs());
-        Logger.recordOutput("SwerveDrive/rotationRange/referenceDeg", Double.NaN);
-        Logger.recordOutput("SwerveDrive/rotationRange/turnShift", 0L);
+        logRotationRangeResolution(
+            minAbsDeg,
+            maxAbsDeg,
+            resolution.minAbsDeg(),
+            resolution.maxAbsDeg(),
+            resolution.swappedInputs(),
+            Double.NaN,
+            0L
+        );
     }
 
     public void setRotationRangeWrappedDegrees(double minWrappedDeg, double maxWrappedDeg) {
@@ -1078,15 +1078,35 @@ public class SwerveDrive extends SubsystemBase {
             resolution.absoluteRange().maxAbsDeg(),
             RotationRangeFrame.WRAPPED_ONE_TURN
         );
-        Logger.recordOutput("SwerveDrive/rotationRange/inputMinDeg", minWrappedDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/inputMaxDeg", maxWrappedDeg);
         Logger.recordOutput("SwerveDrive/rotationRange/normalizedMinDeg", resolution.normalizedMinDeg());
         Logger.recordOutput("SwerveDrive/rotationRange/normalizedMaxDeg", resolution.normalizedMaxDeg());
-        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", resolution.absoluteRange().minAbsDeg());
-        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", resolution.absoluteRange().maxAbsDeg());
-        Logger.recordOutput("SwerveDrive/rotationRange/swappedInputs", resolution.swappedInputs());
-        Logger.recordOutput("SwerveDrive/rotationRange/referenceDeg", wrappedReferenceDeg);
-        Logger.recordOutput("SwerveDrive/rotationRange/turnShift", resolution.absoluteRange().turnShift());
+        logRotationRangeResolution(
+            minWrappedDeg,
+            maxWrappedDeg,
+            resolution.absoluteRange().minAbsDeg(),
+            resolution.absoluteRange().maxAbsDeg(),
+            resolution.swappedInputs(),
+            wrappedReferenceDeg,
+            resolution.absoluteRange().turnShift()
+        );
+    }
+
+    private void logRotationRangeResolution(
+        double inputMinDeg,
+        double inputMaxDeg,
+        double resolvedMinAbsDeg,
+        double resolvedMaxAbsDeg,
+        boolean swappedInputs,
+        double referenceDeg,
+        long turnShift
+    ) {
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMinDeg", inputMinDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/inputMaxDeg", inputMaxDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/minAbsDeg", resolvedMinAbsDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/maxAbsDeg", resolvedMaxAbsDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/swappedInputs", swappedInputs);
+        Logger.recordOutput("SwerveDrive/rotationRange/referenceDeg", referenceDeg);
+        Logger.recordOutput("SwerveDrive/rotationRange/turnShift", turnShift);
     }
 
     private void applyAbsoluteRotationRangeDegrees(

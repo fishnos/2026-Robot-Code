@@ -15,7 +15,6 @@ public class NT4KeyLogger {
 
     public void recordValues() { 
         for (String key : table.getKeys()) {
-            String t = table.getValue(key).getType().getValueStr();
             switch (table.getValue(key).getType()) {
                 case kBoolean:
                     Logger.recordOutput(path + "/" + key, table.getValue(key).getBoolean());

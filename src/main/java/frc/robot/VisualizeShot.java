@@ -93,22 +93,24 @@ public class VisualizeShot {
         double shooterVyField = fieldRelativeSpeeds.vyMetersPerSecond + tangentialVyField;
 
         // Debug logging for shot parameters
-        Logger.recordOutput("VisualizeShot/shooterPose", shooterPose);
-        Logger.recordOutput("VisualizeShot/launchTime", Timer.getFPGATimestamp());
-        Logger.recordOutput("VisualizeShot/hoodAngleDegrees", Math.toDegrees(hoodAngleRadians));
-        Logger.recordOutput("VisualizeShot/turretAngleDegrees", Math.toDegrees(turretAngleRadians));
-        Logger.recordOutput("VisualizeShot/totalYawDegrees", Math.toDegrees(newRotation.getZ()));
-        Logger.recordOutput("VisualizeShot/exitVelocityMPS", exitVelocity);
-        Logger.recordOutput("VisualizeShot/flywheelRPS", flywheelRPS);
-        Logger.recordOutput("VisualizeShot/backspinRPM", backspinRPM);
-        Logger.recordOutput("VisualizeShot/robotVx", fieldRelativeSpeeds.vxMetersPerSecond);
-        Logger.recordOutput("VisualizeShot/robotVy", fieldRelativeSpeeds.vyMetersPerSecond);
-        Logger.recordOutput("VisualizeShot/omegaRadPerSec", omega);
-        Logger.recordOutput("VisualizeShot/tangentialVxField", tangentialVxField);
-        Logger.recordOutput("VisualizeShot/tangentialVyField", tangentialVyField);
-        Logger.recordOutput("VisualizeShot/shooterVxField", shooterVxField);
-        Logger.recordOutput("VisualizeShot/shooterVyField", shooterVyField);
-        Logger.recordOutput("VisualizeShot/targetLocation", targetLocation);
+        if (Constants.VERBOSE_LOGGING_ENABLED) {
+            Logger.recordOutput("VisualizeShot/shooterPose", shooterPose);
+            Logger.recordOutput("VisualizeShot/launchTime", Timer.getFPGATimestamp());
+            Logger.recordOutput("VisualizeShot/hoodAngleDegrees", Math.toDegrees(hoodAngleRadians));
+            Logger.recordOutput("VisualizeShot/turretAngleDegrees", Math.toDegrees(turretAngleRadians));
+            Logger.recordOutput("VisualizeShot/totalYawDegrees", Math.toDegrees(newRotation.getZ()));
+            Logger.recordOutput("VisualizeShot/exitVelocityMPS", exitVelocity);
+            Logger.recordOutput("VisualizeShot/flywheelRPS", flywheelRPS);
+            Logger.recordOutput("VisualizeShot/backspinRPM", backspinRPM);
+            Logger.recordOutput("VisualizeShot/robotVx", fieldRelativeSpeeds.vxMetersPerSecond);
+            Logger.recordOutput("VisualizeShot/robotVy", fieldRelativeSpeeds.vyMetersPerSecond);
+            Logger.recordOutput("VisualizeShot/omegaRadPerSec", omega);
+            Logger.recordOutput("VisualizeShot/tangentialVxField", tangentialVxField);
+            Logger.recordOutput("VisualizeShot/tangentialVyField", tangentialVyField);
+            Logger.recordOutput("VisualizeShot/shooterVxField", shooterVxField);
+            Logger.recordOutput("VisualizeShot/shooterVyField", shooterVyField);
+            Logger.recordOutput("VisualizeShot/targetLocation", targetLocation);
+        }
 
         ProjectileVisualizer.addProjectile(
             shooterVxField,
