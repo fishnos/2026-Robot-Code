@@ -353,12 +353,6 @@ public class ModuleIOTalonFX implements ModuleIO {
     }
 
     @Override
-    public void setWheelCoast(boolean isCoast) {
-        driveMotor.setNeutralMode(isCoast ? NeutralModeValue.Coast : NeutralModeValue.Brake);
-        steerMotor.setNeutralMode(isCoast ? NeutralModeValue.Coast : NeutralModeValue.Brake);
-    }
-
-    @Override
     public void enableDriveEStop() {
         driveConfig.CurrentLimits.StatorCurrentLimit = 0;
         PhoenixUtil.tryUntilOk(5, () -> driveMotor.getConfigurator().apply(driveConfig, 0.25));

@@ -649,9 +649,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void handleDISABLEDSystemState() {
-        if (previousSystemState != CurrentSystemState.DISABLED) {
-            setWheelCoast(true);
-        }
         cancelPathCommand();
         
         driveFieldRelative(new ChassisSpeeds(0, 0, 0));
@@ -660,9 +657,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void handleIdleSystemState() {
-        if (previousSystemState == CurrentSystemState.DISABLED) {
-            setWheelCoast(false);
-        }
         cancelPathCommand();
 
         // Only cancel running commands, but don't null out finished commands
@@ -676,9 +670,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void handleTeleopSystemState() {
-        if (previousSystemState == CurrentSystemState.DISABLED) {
-            setWheelCoast(false);
-        }
         cancelPathCommand();
 
         invert = Constants.shouldFlipPath() ? -1 : 1;
@@ -694,10 +685,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void handleFollowPathSystemState() {
-        if (previousSystemState == CurrentSystemState.DISABLED) {
-            setWheelCoast(false);
-        }
-        
         // Schedule path command if not already running
         if (currentPath != null && (currentPathCommand == null || (!currentPathCommand.isScheduled() && !currentPathCommand.isFinished()))) {
             currentPathCommand = buildPathCommand(currentPath);
@@ -709,9 +696,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void prepareForAuto() {
-        if (previousSystemState != CurrentSystemState.PREPARE_FOR_AUTO && previousSystemState != CurrentSystemState.READY_FOR_AUTO) {
-            setWheelCoast(false);
-        }
         cancelPathCommand();
 
         if (currentPath != null) {
@@ -730,9 +714,6 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     private void handleSysIdSystemState() {
-        if (previousSystemState == CurrentSystemState.DISABLED) {
-            setWheelCoast(false);
-        }
         cancelPathCommand();
 
         previousSystemState = CurrentSystemState.SYSID;
@@ -1402,12 +1383,6 @@ public class SwerveDrive extends SubsystemBase {
 
     public Rotation2d getGyroAngle() {
         return gyroInputs.gyroOrientation.toRotation2d();
-    }
-
-    public void setWheelCoast(boolean isCoast) {
-        for (ModuleIO module : modules) {
-            module.setWheelCoast(isCoast);
-        }
     }
 
     public void enableFrontLeftDriveEStop() {

@@ -38,7 +38,6 @@ public interface ModuleIO {
     public default void setDriveTorqueCurrentFOC(double torqueCurrentFOC, Rotation2d steerAngle) {}
     public default void configureDriveControlLoop(MotorControlLoopConfig config) {}
     public default void configureSteerControlLoop(MotorControlLoopConfig config) {}
-    public default void setWheelCoast(boolean isCoast) {}
     public default void enableDriveEStop() {}
     public default void disableDriveEStop() {}
     public default void enableSteerEStop() {}
