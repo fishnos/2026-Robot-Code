@@ -112,6 +112,7 @@
   "hoodStartingAngleDegrees": 24.984,
   "hoodMinAngleDegrees": 24.984,
   "hoodMaxAngleDegrees": 57.996,
+  "turretMaxJerkDegPerSec3": 12000.0,
   "flywheelCanId": 25,
   "flywheelFollowerCanId": 33,
   "isFlywheelInverted": false,
