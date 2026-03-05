@@ -8,6 +8,7 @@ import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.lib.util.LoopCycleProfiler;
@@ -114,6 +115,10 @@ public class ProjectileVisualizer extends SubsystemBase {
 
     @Override
     public void periodic() {
+        if (!RobotBase.isSimulation()) {
+            return;
+        }
+
         long periodicStartNanos = LoopCycleProfiler.markStart();
 
         long updateProjectilesStartNanos = LoopCycleProfiler.markStart();

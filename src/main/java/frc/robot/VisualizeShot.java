@@ -10,6 +10,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
+import frc.robot.constants.Constants;
 import frc.robot.lib.util.ShotCalculator;
 import frc.robot.lib.util.ballistics.ProjectileVisualizer;
 import frc.robot.subsystems.Superstructure;
@@ -25,6 +26,10 @@ public class VisualizeShot {
     }
 
     private void visualize(double launchExitVelocityMetersPerSec) {
+        if (Constants.currentMode != Constants.Mode.SIM) {
+            return;
+        }
+        
         // Convert robot pose from field-relative Pose2d to Pose3d
         Pose3d robotPose3d = new Pose3d(RobotState.getInstance().getEstimatedPose());
         Rotation2d robotHeading = RobotState.getInstance().getEstimatedPose().getRotation();
