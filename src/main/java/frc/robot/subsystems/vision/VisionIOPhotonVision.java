@@ -4,14 +4,14 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 
-import static frc.robot.constants.vision.VisionConstants.*;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.photonvision.PhotonCamera;
+import frc.robot.constants.vision.VisionConstants;
 
 /** IO implementation for real PhotonVision hardware. */
 public class VisionIOPhotonVision implements VisionIO {
@@ -32,6 +32,8 @@ public class VisionIOPhotonVision implements VisionIO {
   @Override
   public void updateInputs(VisionIOInputs inputs) {
     inputs.connected = camera.isConnected();
+    Optional<edu.wpi.first.apriltag.AprilTagFieldLayout> aprilTagLayout =
+        VisionConstants.getAprilTagLayout();
 
     // Read new camera observations
     Set<Short> tagIds = new HashSet<>();
@@ -79,8 +81,9 @@ public class VisionIOPhotonVision implements VisionIO {
         var target = result.targets.get(0);
 
         // Calculate robot pose
-        var tagPose = aprilTagLayout.getTagPose(target.fiducialId);
-        if (tagPose.isPresent()) {
+        if (aprilTagLayout.isPresent()) {
+          var tagPose = aprilTagLayout.get().getTagPose(target.fiducialId);
+          if (tagPose.isPresent()) {
           Transform3d fieldToTarget =
               new Transform3d(tagPose.get().getTranslation(), tagPose.get().getRotation());
           Transform3d cameraToTarget = target.bestCameraToTarget;
@@ -100,6 +103,7 @@ public class VisionIOPhotonVision implements VisionIO {
                   1, // Tag count
                   cameraToTarget.getTranslation().getNorm(), // Average tag distance
                   PoseObservationType.PHOTONVISION)); // Observation type
+          }
         }
       }
     }
@@ -119,10 +123,12 @@ public class VisionIOPhotonVision implements VisionIO {
 
     // Save tag poses to inputs objects
     List<Pose3d> tagPosesList = new ArrayList<>();
-    for (int id : tagIds) {
-      var tagPose = aprilTagLayout.getTagPose(id);
-      if (tagPose.isPresent()) {
-        tagPosesList.add(tagPose.get());
+    if (aprilTagLayout.isPresent()) {
+      for (int id : tagIds) {
+        var tagPose = aprilTagLayout.get().getTagPose(id);
+        if (tagPose.isPresent()) {
+          tagPosesList.add(tagPose.get());
+        }
       }
     }
     inputs.tagPoses = tagPosesList.toArray(new Pose3d[tagPosesList.size()]);

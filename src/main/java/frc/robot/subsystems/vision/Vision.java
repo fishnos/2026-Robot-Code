@@ -20,16 +20,19 @@ import frc.robot.lib.util.LoopCycleProfiler;
 import frc.robot.subsystems.vision.VisionIO.PoseObservationType;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+
 public class Vision extends SubsystemBase {
     private static final double DETAILED_POSE_LOG_PERIOD_SECONDS = 0.1;
-    private static final double IMU_MODE_REFRESH_PERIOD_SECONDS = 0.1;
+    private static final boolean ENABLE_DETAILED_POSE_LOGGING =
+        Constants.currentMode == Constants.Mode.REPLAY || Constants.VERBOSE_LOGGING_ENABLED;
 
     private static Vision instance = null;
     private static final VisionConfig config = ConfigLoader.load(
@@ -71,7 +74,6 @@ public class Vision extends SubsystemBase {
     private final TimeInterpolatableBuffer<Rotation2d> rotationRateBuffer;
     private final String[] limelightNames;
     private int lastImuMode = Integer.MIN_VALUE;
-    private double lastImuModeWriteTimestampSeconds = Double.NEGATIVE_INFINITY;
     private double lastDetailedPoseLogTimestampSeconds = Double.NEGATIVE_INFINITY;
 
     private Vision(Consumer<VisionObservation> consumer, Supplier<Rotation2d> rotationRateSupplier, VisionIO... io) {
@@ -125,13 +127,11 @@ public class Vision extends SubsystemBase {
         long imuModeStartNanos = LoopCycleProfiler.markStart();
         double currentTime = Timer.getTimestamp();
         int imuMode = DriverStation.isDisabled() ? config.disabledImuMode : config.enabledImuMode;
-        if (imuMode != lastImuMode
-            || currentTime - lastImuModeWriteTimestampSeconds >= IMU_MODE_REFRESH_PERIOD_SECONDS) {
+        if (imuMode != lastImuMode) {
             for (String cameraName : limelightNames) {
                 LimelightHelpers.SetIMUMode(cameraName, imuMode);
             }
             lastImuMode = imuMode;
-            lastImuModeWriteTimestampSeconds = currentTime;
         }
         LoopCycleProfiler.endSection("Vision/SetIMUMode", imuModeStartNanos);
 
@@ -151,7 +151,8 @@ public class Vision extends SubsystemBase {
 
         // Initialize logging values
         boolean shouldLogDetailedPoseArrays =
-            currentTime - lastDetailedPoseLogTimestampSeconds >= DETAILED_POSE_LOG_PERIOD_SECONDS;
+            ENABLE_DETAILED_POSE_LOGGING
+                && currentTime - lastDetailedPoseLogTimestampSeconds >= DETAILED_POSE_LOG_PERIOD_SECONDS;
         if (shouldLogDetailedPoseArrays) {
             lastDetailedPoseLogTimestampSeconds = currentTime;
         }
@@ -160,6 +161,7 @@ public class Vision extends SubsystemBase {
         int totalAcceptedCount = 0;
         int totalRejectedCount = 0;
         int totalObservationCount = 0;
+        Optional<AprilTagFieldLayout> aprilTagLayout = VisionConstants.getAprilTagLayout();
 
         // Loop over cameras
         for (int cameraIndex = 0; cameraIndex < io.length; cameraIndex++) {
@@ -170,23 +172,23 @@ public class Vision extends SubsystemBase {
             disconnectedAlerts[cameraIndex].set(!inputs[cameraIndex].connected);
 
             // Initialize logging values
-            List<Pose3d> tagPoses = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<Pose3d> robotPoses = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<Pose3d> robotPosesAccepted = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<Pose3d> robotPosesRejected = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<String> poseTypes = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<String> poseTypesAccepted = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
-            List<String> poseTypesRejected = shouldLogDetailedPoseArrays ? new LinkedList<>() : null;
+            int poseObservationCount = inputs[cameraIndex].robotPoseObservations.length;
+            List<Pose3d> tagPoses = shouldLogDetailedPoseArrays ? new ArrayList<>(inputs[cameraIndex].tagIds.length) : null;
+            List<Pose3d> robotPoses = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
+            List<Pose3d> robotPosesAccepted = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
+            List<Pose3d> robotPosesRejected = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
+            List<String> poseTypes = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
+            List<String> poseTypesAccepted = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
+            List<String> poseTypesRejected = shouldLogDetailedPoseArrays ? new ArrayList<>(poseObservationCount) : null;
             int acceptedCount = 0;
             int rejectedCount = 0;
 
             // Add tag poses
             if (shouldLogDetailedPoseArrays) {
                 for (int tagId : inputs[cameraIndex].tagIds) {
-                    var tagPose = VisionConstants.aprilTagLayout.getTagPose(tagId);
-                    if (tagPose.isPresent()) {
-                        tagPoses.add(tagPose.get());
-                    }
+                    aprilTagLayout
+                        .flatMap(layout -> layout.getTagPose(tagId))
+                        .ifPresent(tagPoses::add);
                 }
             }
 
@@ -220,13 +222,18 @@ public class Vision extends SubsystemBase {
                             && observation.ambiguity() > config.maxAmbiguity) // Cannot be high ambiguity
                         || Math.abs(observation.pose().getZ())
                             > config.maxZError // Must have realistic Z coordinate
-                        || rotationRateTooHigh // Must not be rotating too fast
+                        || rotationRateTooHigh; // Must not be rotating too fast
 
-                        // Must be within the field boundaries
-                        || observation.pose().getX() < 0.0
-                        || observation.pose().getX() > VisionConstants.aprilTagLayout.getFieldLength()
-                        || observation.pose().getY() < 0.0
-                        || observation.pose().getY() > VisionConstants.aprilTagLayout.getFieldWidth();
+                if (aprilTagLayout.isPresent()) {
+                    var layout = aprilTagLayout.get();
+                    rejectPose =
+                        rejectPose
+                            // Must be within the field boundaries
+                            || observation.pose().getX() < 0.0
+                            || observation.pose().getX() > layout.getFieldLength()
+                            || observation.pose().getY() < 0.0
+                            || observation.pose().getY() > layout.getFieldWidth();
+                }
 
                 // Add pose to log
                 if (shouldLogDetailedPoseArrays) {
@@ -291,7 +298,7 @@ public class Vision extends SubsystemBase {
             }
 
             // Log camera datadata
-            Logger.recordOutput(cameraTimingPrefix + "/PoseObservationCount", inputs[cameraIndex].robotPoseObservations.length);
+            Logger.recordOutput(cameraTimingPrefix + "/PoseObservationCount", poseObservationCount);
             Logger.recordOutput(cameraTimingPrefix + "/PoseAcceptedCount", acceptedCount);
             Logger.recordOutput(cameraTimingPrefix + "/PoseRejectedCount", rejectedCount);
             if (shouldLogDetailedPoseArrays) {

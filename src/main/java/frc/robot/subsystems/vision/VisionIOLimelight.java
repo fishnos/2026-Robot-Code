@@ -12,13 +12,10 @@ import edu.wpi.first.networktables.TimestampedDoubleArray;
 import edu.wpi.first.wpilibj.RobotController;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
-
-import static frc.robot.constants.vision.VisionConstants.aprilTagLayout;
 
 /** IO implementation for real Limelight hardware. */
 public class VisionIOLimelight implements VisionIO {
@@ -30,6 +27,7 @@ public class VisionIOLimelight implements VisionIO {
     private final DoubleSubscriber tySubscriber;
     private final DoubleArraySubscriber megatag1Subscriber;
     private final DoubleArraySubscriber megatag2Subscriber;
+    private final double[] orientationPublishValues = new double[6];
 
     /**
      * Creates a new VisionIOLimelight.
@@ -62,21 +60,17 @@ public class VisionIOLimelight implements VisionIO {
 
         // Update orientation for MegaTag 2
         Rotation3d orientation = rotationSupplier.get();
-        orientationPublisher.accept(
-            new double[] {
-                Math.toDegrees(orientation.getZ()),
-                0.0,
-                Math.toDegrees(orientation.getY()),
-                0.0,
-                Math.toDegrees(orientation.getX()),
-                0.0
-            });
-        NetworkTableInstance.getDefault()
-            .flush(); // Increases network traffic but recommended by Limelight
+        orientationPublishValues[0] = Math.toDegrees(orientation.getZ());
+        orientationPublishValues[1] = 0.0;
+        orientationPublishValues[2] = Math.toDegrees(orientation.getY());
+        orientationPublishValues[3] = 0.0;
+        orientationPublishValues[4] = Math.toDegrees(orientation.getX());
+        orientationPublishValues[5] = 0.0;
+        orientationPublisher.accept(orientationPublishValues);
 
         // Read new pose observations from NetworkTables
         Set<Integer> tagIds = new HashSet<>();
-        List<PoseObservation> poseObservations = new LinkedList<>();
+        List<PoseObservation> poseObservations = new ArrayList<>();
         for (TimestampedDoubleArray rawSample : megatag1Subscriber.readQueue()) {
             if (rawSample.value.length == 0) continue;
             for (int i = 11; i < rawSample.value.length; i += 7) {
@@ -144,10 +138,13 @@ public class VisionIOLimelight implements VisionIO {
 
         // Save tag poses to inputs objects
         List<Pose3d> tagPosesList = new ArrayList<>();
-        for (int id : tagIds) {
-            Optional<Pose3d> tagPose = aprilTagLayout.getTagPose(id);
-            if (tagPose.isPresent()) {
-                tagPosesList.add(tagPose.get());
+        var aprilTagLayout = frc.robot.constants.vision.VisionConstants.getAprilTagLayout();
+        if (aprilTagLayout.isPresent()) {
+            for (int id : tagIds) {
+                Optional<Pose3d> tagPose = aprilTagLayout.get().getTagPose(id);
+                if (tagPose.isPresent()) {
+                    tagPosesList.add(tagPose.get());
+                }
             }
         }
         inputs.tagPoses = tagPosesList.toArray(new Pose3d[tagPosesList.size()]);

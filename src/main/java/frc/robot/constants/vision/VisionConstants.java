@@ -2,15 +2,20 @@ package frc.robot.constants.vision;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.wpilibj.Filesystem;
+import frc.robot.constants.Constants;
 
 public class VisionConstants {
   // AprilTag layout
-  public static AprilTagFieldLayout aprilTagLayout;
+  private static AprilTagFieldLayout aprilTagLayout;
+  private static final AprilTagFieldLayout EMPTY_APRIL_TAG_LAYOUT =
+      new AprilTagFieldLayout(List.of(), 0.0, 0.0);
   private static final Logger logger = Logger.getLogger(VisionConstants.class.getName());
   private static final String[] DEPLOY_LAYOUT_CANDIDATES = {
       "vision/2026-rebuilt-welded.json",
@@ -46,22 +51,37 @@ public class VisionConstants {
     return null;
   }
 
-  static {
+  private static AprilTagFieldLayout loadAprilTagLayout() {
     try {
-      aprilTagLayout = loadDeployLayoutIfPresent();
+      return loadDeployLayoutIfPresent();
     } catch (IOException deployLoadFailure) {
       AprilTagFieldLayout wpilib2026Layout = loadWpilib2026LayoutIfPresent();
       if (wpilib2026Layout != null) {
-        aprilTagLayout = wpilib2026Layout;
-      } else {
-        aprilTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
-        logger.warning(
-            "Falling back to WPILib default AprilTag layout ("
-                + AprilTagFields.kDefaultField
-                + "). Deploy load failure: "
-                + deployLoadFailure.getMessage());
+        return wpilib2026Layout;
       }
+
+      logger.warning(
+          "Falling back to WPILib default AprilTag layout ("
+              + AprilTagFields.kDefaultField
+              + "). Deploy load failure: "
+              + deployLoadFailure.getMessage());
+      return AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
     }
   }
 
+  public static synchronized Optional<AprilTagFieldLayout> getAprilTagLayout() {
+    if (!Constants.VERBOSE_LOGGING_ENABLED) {
+      return Optional.empty();
+    }
+
+    if (aprilTagLayout == null) {
+      aprilTagLayout = loadAprilTagLayout();
+    }
+
+    return Optional.of(aprilTagLayout);
+  }
+
+  public static AprilTagFieldLayout getAprilTagLayoutOrEmpty() {
+    return getAprilTagLayout().orElse(EMPTY_APRIL_TAG_LAYOUT);
+  }
 }
