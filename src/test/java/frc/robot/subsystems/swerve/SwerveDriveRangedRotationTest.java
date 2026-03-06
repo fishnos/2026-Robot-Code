@@ -51,6 +51,7 @@ class SwerveDriveRangedRotationTest {
         assertEquals(SwerveDrive.CurrentOmegaOverrideState.RANGED_NOMINAL, state);
     }
 
+    @Test
     void resolveRangedRotationState_cappedModeUsesCappedNominalState() {
         SwerveDrive.CurrentOmegaOverrideState state = SwerveDrive.resolveRangedRotationState(
             SwerveDrive.CurrentOmegaOverrideState.NONE,
@@ -74,6 +75,7 @@ class SwerveDriveRangedRotationTest {
         assertEquals(SwerveDrive.CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING, state);
     }
 
+    @Test
     void resolveRangedRotationState_cappedReturningStaysReturningUntilBufferedRecovery() {
         SwerveDrive.CurrentOmegaOverrideState state = SwerveDrive.resolveRangedRotationState(
             SwerveDrive.CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING,
@@ -83,6 +85,114 @@ class SwerveDriveRangedRotationTest {
         );
 
         assertEquals(SwerveDrive.CurrentOmegaOverrideState.RANGED_CAPPED_RETURNING, state);
+    }
+
+    @Test
+    void shouldApplyRangedRotationOmegaVelocityCap_keepsCapInNominalState() {
+        assertTrue(SwerveDrive.shouldApplyRangedRotationOmegaVelocityCap(false, true));
+    }
+
+    @Test
+    void shouldApplyRangedRotationOmegaVelocityCap_bypassesCapWhileReturning() {
+        assertFalse(SwerveDrive.shouldApplyRangedRotationOmegaVelocityCap(true, true));
+    }
+
+    @Test
+    void resolveBufferedRotationRange_clampsBufferToHalfWidthForNarrowRanges() {
+        SwerveDrive.RotationRangeBounds bounds = SwerveDrive.resolveBufferedRotationRange(
+            Math.toRadians(10.0),
+            Math.toRadians(20.0),
+            Math.toRadians(15.0)
+        );
+
+        assertEquals(Math.toRadians(15.0), bounds.minRad(), 1e-9);
+        assertEquals(Math.toRadians(15.0), bounds.maxRad(), 1e-9);
+        assertEquals(Math.toRadians(5.0), bounds.bufferRad(), 1e-9);
+    }
+
+    @Test
+    void resolveBufferedRotationRange_keepsRequestedBufferWhenRangeIsWideEnough() {
+        SwerveDrive.RotationRangeBounds bounds = SwerveDrive.resolveBufferedRotationRange(
+            Math.toRadians(-30.0),
+            Math.toRadians(30.0),
+            Math.toRadians(10.0)
+        );
+
+        assertEquals(Math.toRadians(-20.0), bounds.minRad(), 1e-9);
+        assertEquals(Math.toRadians(20.0), bounds.maxRad(), 1e-9);
+        assertEquals(Math.toRadians(10.0), bounds.bufferRad(), 1e-9);
+    }
+
+    @Test
+    void resolveReturnToRangeTargetAngle_targetsNearestRecoveryBound() {
+        double targetNearMin = SwerveDrive.resolveReturnToRangeTargetAngle(
+            Math.toRadians(-25.0),
+            Math.toRadians(-15.0),
+            Math.toRadians(15.0)
+        );
+        double targetNearMax = SwerveDrive.resolveReturnToRangeTargetAngle(
+            Math.toRadians(22.0),
+            Math.toRadians(-15.0),
+            Math.toRadians(15.0)
+        );
+
+        assertEquals(Math.toRadians(-15.0), targetNearMin, 1e-9);
+        assertEquals(Math.toRadians(15.0), targetNearMax, 1e-9);
+    }
+
+    @Test
+    void resolveReturnToRangeTargetAngle_collapsesToSinglePointForNarrowRanges() {
+        double target = SwerveDrive.resolveReturnToRangeTargetAngle(
+            Math.toRadians(50.0),
+            Math.toRadians(15.0),
+            Math.toRadians(15.0)
+        );
+
+        assertEquals(Math.toRadians(15.0), target, 1e-9);
+    }
+
+    @Test
+    void limitOmegaForRange_usesOuterSafetyBufferRatherThanInnerRecoveryBuffer() {
+        double limitedOmega = SwerveDrive.limitOmegaForRange(
+            10.0,
+            Math.toRadians(80.0),
+            0.0,
+            Math.toRadians(5.0),
+            Math.toRadians(85.0),
+            4.0
+        );
+
+        assertEquals(Math.sqrt(2 * 4.0 * Math.toRadians(5.0)), limitedOmega, 1e-9);
+    }
+
+    @Test
+    void limitOmegaForRange_reversesDirectionWhenAlreadyBeyondSafeRange() {
+        double limitedOmega = SwerveDrive.limitOmegaForRange(
+            3.0,
+            Math.toRadians(95.0),
+            0.0,
+            Math.toRadians(-80.0),
+            Math.toRadians(80.0),
+            4.0
+        );
+
+        assertEquals(0.0, limitedOmega, 1e-9);
+    }
+
+    @Test
+    void limitOmegaForRange_accountsForStoppingDistanceFromCurrentOmega() {
+        double limitedOmega = SwerveDrive.limitOmegaForRange(
+            6.0,
+            Math.toRadians(70.0),
+            2.0,
+            Math.toRadians(-80.0),
+            Math.toRadians(80.0),
+            4.0
+        );
+        double stoppingDistance = (2.0 * 2.0) / (2 * 4.0);
+        double expected = Math.sqrt(2 * 4.0 * Math.max(0.0, Math.toRadians(10.0) - stoppingDistance));
+
+        assertEquals(expected, limitedOmega, 1e-9);
     }
 
     @Test
