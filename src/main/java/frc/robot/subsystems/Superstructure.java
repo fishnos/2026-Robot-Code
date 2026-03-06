@@ -750,7 +750,7 @@ public class Superstructure extends SubsystemBase {
     }
 
     private Rotation2d getTargetTurretAngle() {
-        return cachedShotData.targetFieldYaw().minus(robotState.getEstimatedPose().getRotation());
+        return cachedShotData.targetFieldYaw();
     }
 
     private double getTargetTurretVelocityRotPerSec() {
@@ -765,10 +765,6 @@ public class Superstructure extends SubsystemBase {
             shooterKinematics.shooterVyField(),
             cachedShotData.compensatedTargetPosition()
         );
-        double turretDesiredAngularVelocityRotPerSec = ShotKinematicsUtil.calculateTurretAngularVelocityRotPerSec(
-            shooterKinematics,
-            cachedShotData.compensatedTargetPosition()
-        );
 
         Logger.recordOutput(
             "Superstructure/turretDesiredAngularVelocityFieldRadPerSec",
@@ -776,9 +772,9 @@ public class Superstructure extends SubsystemBase {
         );
         Logger.recordOutput(
             "Superstructure/turretDesiredAngularVelocityRotPerSec",
-            turretDesiredAngularVelocityRotPerSec
+            angularVelocityInFieldRadPerSec / (2.0 * Math.PI)
         );
-        return turretDesiredAngularVelocityRotPerSec;
+        return angularVelocityInFieldRadPerSec / (2.0 * Math.PI);
     }
 
     private double getTargetFlywheelRPS() {
