@@ -38,8 +38,8 @@ public interface ShooterIO {
     public default void updateInputs(ShooterIOInputs inputs) {}
     public default void setAngle(double angleRotations) {}
     public default void setTurretAngle(double angleRotations) {}
-    // A non-finite velocity means no explicit turret profile velocity was supplied and
-    // the IO implementation should derive one from successive angle commands.
+    // Velocity is the final signed mechanism setpoint velocity. IO implementations must not
+    // derive or re-profile it; a non-finite value should be treated as zero for safety.
     public default void setTurretAngle(double angleRotations, double velocityRotationsPerSec) {
         setTurretAngle(angleRotations);
     }

@@ -12,7 +12,6 @@ import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.DynamicMotionMagicVoltage;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.controls.PositionVoltage;
@@ -31,25 +30,14 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import frc.robot.configs.ShooterConfig;
-import frc.robot.constants.Constants;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator.MotorControlLoopConfig;
 import frc.robot.lib.util.PhoenixUtil;
 
 public class ShooterIOTalonFX implements ShooterIO {
-    static record TurretMotionMagicCommand(
+    static record TurretPositionCommand(
         double positionRotations,
-        double desiredVelocityRotPerSec,
-        double commandedVelocityRotPerSec,
-        double commandedAccelerationRotPerSec2
-    ) {
-        double motionMagicVelocityRotPerSec() {
-            return Math.abs(commandedVelocityRotPerSec);
-        }
-
-        double motionMagicAccelerationRotPerSec2() {
-            return Math.abs(commandedAccelerationRotPerSec2);
-        }
-    }
+        double velocityRotPerSec
+    ) {}
 
     private final TalonFX hoodMotor;
     private final TalonFX turretMotor;
@@ -92,8 +80,6 @@ public class ShooterIOTalonFX implements ShooterIO {
     private final TalonFXConfiguration turretConfig;
     private final TalonFXConfiguration flywheelConfig;
     private final TalonFXConfiguration flywheelFollowerConfig;
-    private double previousTurretRequestedAngleRotations;
-    private double previousTurretRequestedVelocityRotPerSec = 0.0;
 
     public ShooterIOTalonFX(ShooterConfig config) {
         this.config = config;
@@ -179,7 +165,6 @@ public class ShooterIOTalonFX implements ShooterIO {
         turretMotor = new TalonFX(config.turretCanId, new CANBus(config.canBusName));
         PhoenixUtil.tryUntilOk(5, () -> turretMotor.getConfigurator().apply(turretConfig, 0.25));
         PhoenixUtil.tryUntilOk(5, () -> turretMotor.setPosition(config.turretStartingAngleDeg / 360.0, 0.25));
-        previousTurretRequestedAngleRotations = config.turretStartingAngleDeg / 360.0;
 
         // Flywheel motor configuration (velocity control) - Leader
         flywheelConfig = new TalonFXConfiguration();
@@ -324,59 +309,20 @@ public class ShooterIOTalonFX implements ShooterIO {
 
     @Override
     public void setTurretAngle(double angleRotations) {
-        setTurretAngle(angleRotations, Double.NaN);
+        setTurretAngle(angleRotations, 0.0);
     }
 
-    static TurretMotionMagicCommand calculateTurretMotionMagicCommand(
+    static TurretPositionCommand calculateTurretPositionCommand(
         double requestedAngleRotations,
         double requestedVelocityRotPerSec,
-        double currentPositionRotations,
-        double previousRequestedVelocityRotPerSec,
         double minRot,
-        double maxRot,
-        double maxVelocityRotPerSec,
-        double maxAccelerationRotPerSec2,
-        double loopPeriodSec
+        double maxRot
     ) {
         double clampedAngle = MathUtil.clamp(requestedAngleRotations, minRot, maxRot);
-
-        double desiredVelocityRotPerSec;
-        if (Double.isFinite(requestedVelocityRotPerSec)) {
-            desiredVelocityRotPerSec = requestedVelocityRotPerSec;
-        } else {
-            // When no explicit tracking velocity is supplied, derive cruise velocity from the
-            // remaining position error so a held setpoint does not collapse to zero cruise speed.
-            double wrappedPositionErrorRotations = MathUtil.inputModulus(
-                clampedAngle - currentPositionRotations,
-                -0.5,
-                0.5
-            );
-            desiredVelocityRotPerSec = wrappedPositionErrorRotations / loopPeriodSec;
-        }
-
-        double clampedDesiredVelocityRotPerSec = MathUtil.clamp(
-            desiredVelocityRotPerSec,
-            -maxVelocityRotPerSec,
-            maxVelocityRotPerSec
-        );
-        double desiredAccelerationRotPerSec2 =
-            (clampedDesiredVelocityRotPerSec - previousRequestedVelocityRotPerSec) / loopPeriodSec;
-        double commandedAccelerationRotPerSec2 = MathUtil.clamp(
-            desiredAccelerationRotPerSec2,
-            -maxAccelerationRotPerSec2,
-            maxAccelerationRotPerSec2
-        );
-        double commandedVelocityRotPerSec = MathUtil.clamp(
-            previousRequestedVelocityRotPerSec + (commandedAccelerationRotPerSec2 * loopPeriodSec),
-            -maxVelocityRotPerSec,
-            maxVelocityRotPerSec
-        );
-
-        return new TurretMotionMagicCommand(
+        double safeVelocityRotPerSec = Double.isFinite(requestedVelocityRotPerSec) ? requestedVelocityRotPerSec : 0.0;
+        return new TurretPositionCommand(
             clampedAngle,
-            desiredVelocityRotPerSec,
-            commandedVelocityRotPerSec,
-            commandedAccelerationRotPerSec2
+            safeVelocityRotPerSec
         );
     }
 
@@ -384,43 +330,30 @@ public class ShooterIOTalonFX implements ShooterIO {
     public void setTurretAngle(double angleRotations, double velocityRotationsPerSec) {
         double minRot = config.turretMinAngleDeg / 360.0;
         double maxRot = config.turretMaxAngleDeg / 360.0;
-        double maxVelocityRotPerSec = turretConfig.MotionMagic.MotionMagicCruiseVelocity;
-        double maxAccelerationRotPerSec2 = turretConfig.MotionMagic.MotionMagicAcceleration;
-        TurretMotionMagicCommand motionMagicCommand = calculateTurretMotionMagicCommand(
+        TurretPositionCommand turretPositionCommand = calculateTurretPositionCommand(
             angleRotations,
             velocityRotationsPerSec,
-            turretPositionStatusSignal.getValue().in(Rotations),
-            previousTurretRequestedVelocityRotPerSec,
             minRot,
-            maxRot,
-            maxVelocityRotPerSec,
-            maxAccelerationRotPerSec2,
-            Constants.kLOOP_CYCLE_MS
+            maxRot
         );
-        double maxJerkRotPerSec3 = turretConfig.MotionMagic.MotionMagicJerk;
 
         turretMotor.setControl(
             turretMotorRequest
-                .withPosition(motionMagicCommand.positionRotations())
-                .withVelocity(motionMagicCommand.motionMagicVelocityRotPerSec())
-                // .withAcceleration(motionMagicCommand.motionMagicAccelerationRotPerSec2())
-                // .withJerk(Math.abs(maxJerkRotPerSec3))
+                .withPosition(turretPositionCommand.positionRotations())
+                .withVelocity(turretPositionCommand.velocityRotPerSec())
         );
         Logger.recordOutput(
             "Shooter/turretCommandedVelocityRotationsPerSec",
-            motionMagicCommand.commandedVelocityRotPerSec()
+            turretPositionCommand.velocityRotPerSec()
         );
         Logger.recordOutput(
             "Shooter/turretDesiredVelocityRotationsPerSec",
-            motionMagicCommand.desiredVelocityRotPerSec()
+            turretPositionCommand.velocityRotPerSec()
         );
         Logger.recordOutput(
             "Shooter/turretCommandedAccelerationRotationsPerSec2",
-            motionMagicCommand.commandedAccelerationRotPerSec2()
+            0.0
         );
-
-        previousTurretRequestedAngleRotations = motionMagicCommand.positionRotations();
-        previousTurretRequestedVelocityRotPerSec = motionMagicCommand.commandedVelocityRotPerSec();
     }
 
     @Override

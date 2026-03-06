@@ -11,8 +11,11 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.State;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.RobotState;
 import frc.robot.configs.ShooterConfig;
 import frc.robot.constants.Constants;
 import frc.robot.constants.FieldConstants;
@@ -74,6 +77,7 @@ public class Shooter extends SubsystemBase {
 
     // Setpoint Suppliers (set by Superstructure)
     private Supplier<Rotation2d> hoodAngleSupplier = () -> Rotation2d.fromDegrees(45.0);
+    // Dynamic turret tracking uses field-relative targets. Direct turret setters remain robot-relative.
     private Supplier<Rotation2d> turretAngleSupplier = () -> new Rotation2d(0);
     private Supplier<Double> turretVelocitySupplier = () -> 0.0;
     private Supplier<Double> flywheelRPSSupplier = () -> 0.0;
@@ -95,6 +99,10 @@ public class Shooter extends SubsystemBase {
     private double flywheelSetpointRPS = 0.0;
     private double turretResolvedSetpointDeg = 0.0;
     private boolean turretUsedUnwindFallback = false;
+    private final double turretMaxVelocityRotPerSec;
+    private final double turretMaxAccelerationRotPerSec2;
+    private State turretProfileSetpoint;
+    private double lastTurretGoalDeg;
 
     private Shooter() {
         boolean useSimulation = Constants.shouldUseSimulation(Constants.SimOnlySubsystems.SHOOTER);
@@ -135,6 +143,11 @@ public class Shooter extends SubsystemBase {
                 config.flywheelKA
             )
         );
+
+        turretMaxVelocityRotPerSec = config.turretMaxVelocityDegPerSec / 360.0;
+        turretMaxAccelerationRotPerSec2 = config.turretMaxAccelerationDegPerSec2 / 360.0;
+        turretProfileSetpoint = new State(config.turretStartingAngleDeg / 360.0, 0.0);
+        lastTurretGoalDeg = config.turretStartingAngleDeg;
     }
 
     @Override
@@ -167,6 +180,14 @@ public class Shooter extends SubsystemBase {
                 shooterIO.configureFlywheelControlLoop(flywheelControlLoopConfigurator.getConfig());
                 pendingFlywheelControlLoopConfigApply = false;
             }
+
+            double clampedMeasuredTurretRotations = MathUtil.clamp(
+                shooterInputs.turretAngleRotations,
+                config.turretMinAngleDeg / 360.0,
+                config.turretMaxAngleDeg / 360.0
+            );
+            turretProfileSetpoint = new State(clampedMeasuredTurretRotations, 0.0);
+            lastTurretGoalDeg = clampedMeasuredTurretRotations * 360.0;
         }
         LoopCycleProfiler.endSection("Shooter/ControlLoopConfigUpdates", configUpdatesStartNanos);
 
@@ -196,9 +217,15 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setTurretSetpoint(TurretSetpoint setpoint) {
-        Rotation2d target = setpoint == TurretSetpoint.DYNAMIC ? turretAngleSupplier.get() : setpoint.getAngle();
-        double targetVelocityRotPerSec = setpoint == TurretSetpoint.DYNAMIC ? turretVelocitySupplier.get() : Double.NaN;
-        setTurretAngle(target, targetVelocityRotPerSec);
+        if (setpoint == TurretSetpoint.DYNAMIC) {
+            setTurretAngle(
+                turretAngleSupplier.get(),
+                turretVelocitySupplier.get(),
+                TurretReferenceFrame.FIELD_RELATIVE
+            );
+        } else {
+            setTurretAngle(setpoint.getAngle(), 0.0, TurretReferenceFrame.ROBOT_RELATIVE);
+        }
     }
 
     public void setFlywheelSetpoint(FlywheelSetpoint setpoint) {
@@ -224,44 +251,134 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setTurretAngle(Rotation2d angle) {
-        setTurretAngle(angle, Double.NaN);
+        setTurretAngle(angle, 0.0, TurretReferenceFrame.ROBOT_RELATIVE);
     }
 
     public void setTurretAngle(Rotation2d angle, double requestedVelocityRotPerSec) {
-        double requestedDeg = angle.getDegrees();
-        double currentDeg = shooterInputs.turretAngleRotations * 360.0;
+        setTurretAngle(angle, requestedVelocityRotPerSec, TurretReferenceFrame.ROBOT_RELATIVE);
+    }
+
+    private void setTurretAngle(
+        Rotation2d angle,
+        double requestedVelocityRotPerSec,
+        TurretReferenceFrame referenceFrame
+    ) {
+        Rotation2d robotYaw = RobotState.getInstance().getEstimatedPose().getRotation();
+        double robotYawVelocityRotPerSec = RobotState.getInstance().getYawVelocityRadPerSec() / (2.0 * Math.PI);
         double minDeg = config.turretMinAngleDeg;
         double maxDeg = config.turretMaxAngleDeg;
 
-        Logger.recordOutput("Shooter/unclampedTurretAngleRotations", angle.getRotations());
-        Logger.recordOutput("Shooter/turretRequestedAngleDeg", requestedDeg);
-        Logger.recordOutput("Shooter/turretCurrentAngleDeg", currentDeg);
-
-        TurretResolution resolution = resolveTurretTargetDegrees(requestedDeg, currentDeg, minDeg, maxDeg);
-        double targetAngleDeg = resolution.targetAngleDeg();
-        boolean usedUnwindFallback = resolution.usedUnwindFallback();
-        double unwindTargetDeg = resolution.unwindTargetDeg();
-
-        double targetAngleRotations = targetAngleDeg / 360.0;
-        turretSetpointRotations = targetAngleRotations;
-        turretResolvedSetpointDeg = targetAngleDeg;
-        turretUsedUnwindFallback = usedUnwindFallback;
-
-        Logger.recordOutput("Shooter/turretUsedUnwindFallback", usedUnwindFallback);
-        Logger.recordOutput("Shooter/turretUnwindTargetDeg", unwindTargetDeg);
-        Logger.recordOutput("Shooter/turretResolvedSetpointDeg", targetAngleDeg);
-        Logger.recordOutput("Shooter/turretAngleSetpointRotations", targetAngleRotations);
-        Logger.recordOutput("Shooter/turretRequestedVelocityRotationsPerSec", requestedVelocityRotPerSec);
-
-        shooterIO.setTurretAngle(
-            targetAngleRotations,
-            usedUnwindFallback ? Double.NaN : requestedVelocityRotPerSec
+        TurretGoalState goalState = resolveTurretGoalState(
+            angle,
+            requestedVelocityRotPerSec,
+            referenceFrame,
+            robotYaw,
+            robotYawVelocityRotPerSec,
+            lastTurretGoalDeg,
+            minDeg,
+            maxDeg
         );
+        State mechanismGoalState = new State(
+            goalState.targetAngleDeg() / 360.0,
+            goalState.targetVelocityRotPerSec()
+        );
+        turretProfileSetpoint = calculateTurretProfileSetpoint(
+            turretProfileSetpoint,
+            mechanismGoalState,
+            turretMaxVelocityRotPerSec,
+            turretMaxAccelerationRotPerSec2,
+            Constants.kLOOP_CYCLE_MS
+        );
+        lastTurretGoalDeg = goalState.targetAngleDeg();
+
+        turretSetpointRotations = mechanismGoalState.position;
+        turretResolvedSetpointDeg = goalState.targetAngleDeg();
+        turretUsedUnwindFallback = goalState.usedUnwindFallback();
+
+        Logger.recordOutput("Shooter/unclampedTurretAngleRotations", angle.getRotations());
+        Logger.recordOutput("Shooter/turretFieldRelativeRequestedAngleDeg", goalState.fieldRelativeAngleDeg());
+        Logger.recordOutput(
+            "Shooter/turretFieldRelativeRequestedVelocityRotationsPerSec",
+            goalState.fieldRelativeVelocityRotPerSec()
+        );
+        Logger.recordOutput("Shooter/turretRobotRelativeRequestedAngleDeg", goalState.robotRelativeAngleDeg());
+        Logger.recordOutput(
+            "Shooter/turretRobotRelativeRequestedVelocityRotationsPerSec",
+            goalState.robotRelativeVelocityRotPerSec()
+        );
+        Logger.recordOutput("Shooter/turretUsedUnwindFallback", goalState.usedUnwindFallback());
+        Logger.recordOutput("Shooter/turretUnwindTargetDeg", goalState.unwindTargetDeg());
+        Logger.recordOutput("Shooter/turretResolvedSetpointDeg", goalState.targetAngleDeg());
+        Logger.recordOutput("Shooter/turretAngleSetpointRotations", mechanismGoalState.position);
+        Logger.recordOutput("Shooter/turretRequestedVelocityRotationsPerSec", goalState.targetVelocityRotPerSec());
+        Logger.recordOutput("Shooter/turretProfileSetpointRotations", turretProfileSetpoint.position);
+        Logger.recordOutput(
+            "Shooter/turretProfileSetpointVelocityRotationsPerSec",
+            turretProfileSetpoint.velocity
+        );
+
+        shooterIO.setTurretAngle(turretProfileSetpoint.position, turretProfileSetpoint.velocity);
+    }
+
+    static TurretGoalState resolveTurretGoalState(
+        Rotation2d requestedAngle,
+        double requestedVelocityRotPerSec,
+        TurretReferenceFrame referenceFrame,
+        Rotation2d robotYaw,
+        double robotYawVelocityRotPerSec,
+        double previousGoalDeg,
+        double minDeg,
+        double maxDeg
+    ) {
+        double normalizedRequestedVelocityRotPerSec =
+            Double.isFinite(requestedVelocityRotPerSec) ? requestedVelocityRotPerSec : 0.0;
+        Rotation2d robotRelativeAngle = requestedAngle;
+        double robotRelativeVelocityRotPerSec = normalizedRequestedVelocityRotPerSec;
+        double fieldRelativeAngleDeg = Double.NaN;
+        double fieldRelativeVelocityRotPerSec = Double.NaN;
+
+        if (referenceFrame == TurretReferenceFrame.FIELD_RELATIVE) {
+            fieldRelativeAngleDeg = requestedAngle.getDegrees();
+            fieldRelativeVelocityRotPerSec = normalizedRequestedVelocityRotPerSec;
+            robotRelativeAngle = requestedAngle.minus(robotYaw);
+            robotRelativeVelocityRotPerSec = normalizedRequestedVelocityRotPerSec - robotYawVelocityRotPerSec;
+        }
+
+        TurretResolution resolution = resolveTurretTargetDegrees(
+            robotRelativeAngle.getDegrees(),
+            previousGoalDeg,
+            minDeg,
+            maxDeg
+        );
+        double targetVelocityRotPerSec = resolution.usedUnwindFallback() ? 0.0 : robotRelativeVelocityRotPerSec;
+
+        return new TurretGoalState(
+            fieldRelativeAngleDeg,
+            fieldRelativeVelocityRotPerSec,
+            robotRelativeAngle.getDegrees(),
+            robotRelativeVelocityRotPerSec,
+            resolution.targetAngleDeg(),
+            targetVelocityRotPerSec,
+            resolution.usedUnwindFallback(),
+            resolution.unwindTargetDeg()
+        );
+    }
+
+    static State calculateTurretProfileSetpoint(
+        State currentSetpoint,
+        State goalState,
+        double maxVelocityRotPerSec,
+        double maxAccelerationRotPerSec2,
+        double loopPeriodSec
+    ) {
+        return new TrapezoidProfile(
+            new TrapezoidProfile.Constraints(maxVelocityRotPerSec, maxAccelerationRotPerSec2)
+        ).calculate(loopPeriodSec, currentSetpoint, goalState);
     }
 
     static TurretResolution resolveTurretTargetDegrees(
         double requestedDeg,
-        double currentDeg,
+        double referenceDeg,
         double minDeg,
         double maxDeg
     ) {
@@ -271,18 +388,18 @@ public class Shooter extends SubsystemBase {
 
         int minK = (int) Math.ceil((minDeg - requestedDeg) / 360.0);
         int maxK = (int) Math.floor((maxDeg - requestedDeg) / 360.0);
-        int currentBranchK = (int) Math.round((currentDeg - requestedDeg) / 360.0);
+        int currentBranchK = (int) Math.round((referenceDeg - requestedDeg) / 360.0);
         double currentBranchTargetDeg = requestedDeg + currentBranchK * 360.0;
         double currentBranchClampedDeg = MathUtil.clamp(currentBranchTargetDeg, minDeg, maxDeg);
         boolean isCurrentBranchOutsideLimits = currentBranchClampedDeg != currentBranchTargetDeg;
 
         if (minK <= maxK) {
             double bestAngleDeg = requestedDeg + (minK * 360.0);
-            double bestDistanceDeg = Math.abs(bestAngleDeg - currentDeg);
+            double bestDistanceDeg = Math.abs(bestAngleDeg - referenceDeg);
 
             for (int k = minK + 1; k <= maxK; k++) {
                 double candidateDeg = requestedDeg + (k * 360.0);
-                double candidateDistanceDeg = Math.abs(candidateDeg - currentDeg);
+                double candidateDistanceDeg = Math.abs(candidateDeg - referenceDeg);
                 if (candidateDistanceDeg < bestDistanceDeg) {
                     bestDistanceDeg = candidateDistanceDeg;
                     bestAngleDeg = candidateDeg;
@@ -290,7 +407,7 @@ public class Shooter extends SubsystemBase {
             }
 
             if (isCurrentBranchOutsideLimits) {
-                double clampedCurrentBranchDistanceDeg = Math.abs(currentBranchClampedDeg - currentDeg);
+                double clampedCurrentBranchDistanceDeg = Math.abs(currentBranchClampedDeg - referenceDeg);
                 if (clampedCurrentBranchDistanceDeg < bestDistanceDeg) {
                     bestAngleDeg = currentBranchClampedDeg;
                 }
@@ -301,7 +418,7 @@ public class Shooter extends SubsystemBase {
         } else {
             unwindTargetDeg = selectFallbackTurretBoundDegrees(
                 requestedDeg,
-                currentDeg,
+                referenceDeg,
                 minDeg,
                 maxDeg,
                 currentBranchClampedDeg
@@ -315,7 +432,7 @@ public class Shooter extends SubsystemBase {
 
     static double selectFallbackTurretBoundDegrees(
         double requestedDeg,
-        double currentDeg,
+        double referenceDeg,
         double minDeg,
         double maxDeg,
         double currentBranchClampedDeg
@@ -329,8 +446,8 @@ public class Shooter extends SubsystemBase {
             return maxDeg;
         }
 
-        double minCurrentDistanceDeg = Math.abs(minDeg - currentDeg);
-        double maxCurrentDistanceDeg = Math.abs(maxDeg - currentDeg);
+        double minCurrentDistanceDeg = Math.abs(minDeg - referenceDeg);
+        double maxCurrentDistanceDeg = Math.abs(maxDeg - referenceDeg);
         if (minCurrentDistanceDeg < maxCurrentDistanceDeg) {
             return minDeg;
         }
@@ -346,6 +463,22 @@ public class Shooter extends SubsystemBase {
         boolean usedUnwindFallback,
         double unwindTargetDeg
     ) {}
+
+    static record TurretGoalState(
+        double fieldRelativeAngleDeg,
+        double fieldRelativeVelocityRotPerSec,
+        double robotRelativeAngleDeg,
+        double robotRelativeVelocityRotPerSec,
+        double targetAngleDeg,
+        double targetVelocityRotPerSec,
+        boolean usedUnwindFallback,
+        double unwindTargetDeg
+    ) {}
+
+    enum TurretReferenceFrame {
+        ROBOT_RELATIVE,
+        FIELD_RELATIVE
+    }
 
     public void setShotVelocity(double velocityRotationsPerSec) {
         flywheelSetpointRPS = velocityRotationsPerSec;
