@@ -10,6 +10,7 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.configs.ShooterConfig;
+import frc.robot.constants.Constants;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator.MotorControlLoopConfig;
 
 public class ShooterIOSim implements ShooterIO {
@@ -192,7 +193,7 @@ public class ShooterIOSim implements ShooterIO {
 
     @Override
     public void setTurretAngle(double angleRotations) {
-        setTurretAngle(angleRotations, 0.0);
+        setTurretAngle(angleRotations, Double.NaN);
     }
 
     @Override
@@ -206,7 +207,18 @@ public class ShooterIOSim implements ShooterIO {
         double maxRot = config.turretMaxAngleDeg / 360.0;
         double clampedAngle = MathUtil.clamp(angleRotations, minRot, maxRot);
         double goalRadians = clampedAngle * (2 * Math.PI);
-        double goalVelocityRadPerSec = velocityRotationsPerSec * (2 * Math.PI);
+        double requestedVelocityRotPerSec;
+        if (Double.isFinite(velocityRotationsPerSec)) {
+            requestedVelocityRotPerSec = velocityRotationsPerSec;
+        } else {
+            double wrappedPositionErrorRotations = MathUtil.inputModulus(
+                clampedAngle - turretSim.getAngularPositionRotations(),
+                -0.5,
+                0.5
+            );
+            requestedVelocityRotPerSec = wrappedPositionErrorRotations / Constants.kLOOP_CYCLE_MS;
+        }
+        double goalVelocityRadPerSec = requestedVelocityRotPerSec * (2 * Math.PI);
         turretFeedback.setGoal(new TrapezoidProfile.State(goalRadians, goalVelocityRadPerSec));
         isTurretClosedLoop = true;
     }

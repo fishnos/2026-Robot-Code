@@ -197,7 +197,7 @@ public class Shooter extends SubsystemBase {
 
     public void setTurretSetpoint(TurretSetpoint setpoint) {
         Rotation2d target = setpoint == TurretSetpoint.DYNAMIC ? turretAngleSupplier.get() : setpoint.getAngle();
-        double targetVelocityRotPerSec = setpoint == TurretSetpoint.DYNAMIC ? turretVelocitySupplier.get() : 0.0;
+        double targetVelocityRotPerSec = setpoint == TurretSetpoint.DYNAMIC ? turretVelocitySupplier.get() : Double.NaN;
         setTurretAngle(target, targetVelocityRotPerSec);
     }
 
@@ -224,7 +224,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setTurretAngle(Rotation2d angle) {
-        setTurretAngle(angle, 0.0);
+        setTurretAngle(angle, Double.NaN);
     }
 
     public void setTurretAngle(Rotation2d angle, double requestedVelocityRotPerSec) {
@@ -255,7 +255,7 @@ public class Shooter extends SubsystemBase {
 
         shooterIO.setTurretAngle(
             targetAngleRotations,
-            usedUnwindFallback ? 0.0 : requestedVelocityRotPerSec
+            usedUnwindFallback ? Double.NaN : requestedVelocityRotPerSec
         );
     }
 
