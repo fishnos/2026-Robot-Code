@@ -222,6 +222,21 @@ public class ModuleIOTalonFX implements ModuleIO {
             steerVelocityStatusSignal
         );
 
+        PhoenixUtil.registerSignals(
+            driveTorqueCurrent,
+            driveTemperature,
+            driveMotorVoltage,
+            steerTorqueCurrent,
+            steerTemperature,
+            steerMotorVoltage,
+            steerEncoderAbsolutePosition,
+            steerEncoderPositionStatusSignal,
+            drivePositionStatusSignal,
+            driveVelocityStatusSignal,
+            steerPositionStatusSignal,
+            steerVelocityStatusSignal
+        );
+
         driveMotor.optimizeBusUtilization();
         steerMotor.optimizeBusUtilization();
         steerEncoder.optimizeBusUtilization();
@@ -229,25 +244,6 @@ public class ModuleIOTalonFX implements ModuleIO {
 
     @Override
     public void updateInputs(ModuleIOInputs inputs) {
-        BaseStatusSignal.refreshAll(
-            driveTorqueCurrent,
-            driveTemperature,
-            driveMotorVoltage,
-
-            steerTorqueCurrent,
-            steerTemperature,
-            steerMotorVoltage,
-
-            steerEncoderAbsolutePosition,
-            steerEncoderPositionStatusSignal,
-
-            drivePositionStatusSignal,
-            driveVelocityStatusSignal,
-
-            steerPositionStatusSignal,
-            steerVelocityStatusSignal
-        );
-
         inputs.drivePositionMeters = BaseStatusSignal.getLatencyCompensatedValue(drivePositionStatusSignal, driveVelocityStatusSignal).in(Rotation);
         inputs.driveVelocityMetersPerSec = driveVelocityStatusSignal.getValue().in(RotationsPerSecond);
         inputs.driveAppliedVolts = driveMotorVoltage.getValue().in(Volts);
@@ -265,15 +261,33 @@ public class ModuleIOTalonFX implements ModuleIO {
         inputs.steerTorqueCurrent = steerTorqueCurrent.getValue().in(Amps);
         inputs.steerTemperatureFahrenheit = steerTemperature.getValue().in(Fahrenheit);
 
-        inputs.odometryTimestampsSeconds = timestampQueue.stream().mapToDouble(Double::doubleValue).toArray();
-        inputs.odometryDrivePositionsMeters = drivePositionQueue.stream().mapToDouble(Double::doubleValue).toArray();
-        inputs.odometrySteerPositions = steerPositionQueue.stream().map((Double value) -> Rotation2d.fromRotations(value)).toArray(Rotation2d[]::new);
+        inputs.odometryTimestampsSeconds = copyDoubleQueue(timestampQueue);
+        inputs.odometryDrivePositionsMeters = copyDoubleQueue(drivePositionQueue);
+        inputs.odometrySteerPositions = copyRotationQueue(steerPositionQueue);
 
         timestampQueue.clear();
         drivePositionQueue.clear();
         steerPositionQueue.clear();
 
         lastSteerAngleRad = new Rotation2d(inputs.steerPosition.getRadians());
+    }
+
+    private static double[] copyDoubleQueue(Queue<Double> queue) {
+        double[] values = new double[queue.size()];
+        int index = 0;
+        for (Double value : queue) {
+            values[index++] = value;
+        }
+        return values;
+    }
+
+    private static Rotation2d[] copyRotationQueue(Queue<Double> queue) {
+        Rotation2d[] values = new Rotation2d[queue.size()];
+        int index = 0;
+        for (Double value : queue) {
+            values[index++] = Rotation2d.fromRotations(value);
+        }
+        return values;
     }
 
     @Override

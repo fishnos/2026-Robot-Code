@@ -57,13 +57,13 @@ public class GyroIOPigeon2 implements GyroIO {
         odometryTimestampQueue = PhoenixOdometryThread.getInstance().makeTimestampQueue();
         yawPositionQueue = PhoenixOdometryThread.getInstance().registerSignal(yawSignal.clone());
 
+        PhoenixUtil.registerSignals(yawSignal, rollSignal, pitchSignal, yawVelocitySignal);
+
         gyro.optimizeBusUtilization();
     }
 
     @Override
     public synchronized void updateInputs(GyroIOInputs inputs) {
-        BaseStatusSignal.refreshAll(yawSignal, rollSignal, pitchSignal, yawVelocitySignal);
-
         inputs.isConnected = true;
 
         double yawRadians = MathUtil.angleModulus(
@@ -76,11 +76,29 @@ public class GyroIOPigeon2 implements GyroIO {
         );
         inputs.yawVelocityRadPerSec = yawVelocitySignal.getValue().in(RadiansPerSecond);
 
-        inputs.odometryTimestampsSeconds = odometryTimestampQueue.stream().mapToDouble(Double::doubleValue).toArray();
-        inputs.odometryYawPositions = yawPositionQueue.stream().map((Double value) -> Rotation2d.fromDegrees(value)).toArray(Rotation2d[]::new);
+        inputs.odometryTimestampsSeconds = copyDoubleQueue(odometryTimestampQueue);
+        inputs.odometryYawPositions = copyYawQueue(yawPositionQueue);
 
         odometryTimestampQueue.clear();
         yawPositionQueue.clear();
+    }
+
+    private static double[] copyDoubleQueue(Queue<Double> queue) {
+        double[] values = new double[queue.size()];
+        int index = 0;
+        for (Double value : queue) {
+            values[index++] = value;
+        }
+        return values;
+    }
+
+    private static Rotation2d[] copyYawQueue(Queue<Double> queue) {
+        Rotation2d[] values = new Rotation2d[queue.size()];
+        int index = 0;
+        for (Double value : queue) {
+            values[index++] = Rotation2d.fromDegrees(value);
+        }
+        return values;
     }
 
     @Override

@@ -21,6 +21,7 @@ import frc.robot.constants.Constants;
 import frc.robot.constants.FieldConstants;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.lib.util.LoopCycleProfiler;
+import frc.robot.lib.util.PhoenixUtil;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -115,6 +116,10 @@ public class Robot extends LoggedRobot {
     @Override
     public void robotPeriodic() {
         LoopCycleProfiler.beginCycle();
+
+        long phoenixRefreshStartNanos = LoopCycleProfiler.markStart();
+        PhoenixUtil.refreshAll();
+        LoopCycleProfiler.endSection("Robot/PhoenixRefresh", phoenixRefreshStartNanos);
 
         long schedulerStartNanos = LoopCycleProfiler.markStart();
         // Runs the Scheduler. This is responsible for polling buttons, adding

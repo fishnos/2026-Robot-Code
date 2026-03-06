@@ -385,14 +385,15 @@ public class SwerveDrive extends SubsystemBase {
         odometryLock.lock();
         try {
             gyroIO.updateInputs(gyroInputs);
-            Logger.processInputs("SwerveDrive/gyro", gyroInputs);
-
             for (int i = 0; i < 4; i++) {
                 modules[i].updateInputs(moduleInputs[i]);
-                Logger.processInputs("SwerveDrive/module" + i, moduleInputs[i]);
             }
         } finally {
             odometryLock.unlock();
+        }
+        Logger.processInputs("SwerveDrive/gyro", gyroInputs);
+        for (int i = 0; i < 4; i++) {
+            Logger.processInputs("SwerveDrive/module" + i, moduleInputs[i]);
         }
         LoopCycleProfiler.endSection("SwerveDrive/ReadInputs", inputReadStartNanos);
 
