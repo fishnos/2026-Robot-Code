@@ -1,15 +1,13 @@
 package frc.robot.lib.util.ballistics;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import frc.robot.configs.ShooterConfig;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import frc.robot.configs.ShooterConfig;
 
 public final class LerpTableGenerator {
     private static final double SIMULATION_DT = 0.002;
@@ -22,8 +20,7 @@ public final class LerpTableGenerator {
         35, 48, 60, 72, 96, 120, 144, 180, 216, 252, 300, 360, 420
     };
 
-    private LerpTableGenerator() {
-    }
+    private LerpTableGenerator() {}
 
     public static void main(String[] args) throws IOException {
         if (args.length < 1) {
@@ -32,7 +29,7 @@ public final class LerpTableGenerator {
         }
 
         ShooterConfig config = loadConfig(Path.of(args[0]));
-        List<LerpEntry> entries = generate(config);
+        List<ShooterConfig.LerpEntry> entries = generate(config);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         System.out.println(gson.toJson(entries));
     }
@@ -42,18 +39,24 @@ public final class LerpTableGenerator {
         return new Gson().fromJson(json, ShooterConfig.class);
     }
 
-    public static List<LerpEntry> generate(ShooterConfig config) {
+    public static List<ShooterConfig.LerpEntry> generate(ShooterConfig config) {
         double shooterHeight = config.shooterPoseZ;
-        double minAngle = Math.toRadians(config.hoodMinAngleDegrees);
-        double maxAngle = Math.toRadians(config.hoodMaxAngleDegrees);
+        double minAngle = Math.toRadians(Math.min(config.hoodMinAngleDegrees, config.hoodMaxAngleDegrees));
+        double maxAngle = Math.toRadians(Math.max(config.hoodMinAngleDegrees, config.hoodMaxAngleDegrees));
 
-        List<LerpEntry> results = new ArrayList<>();
+        List<ShooterConfig.LerpEntry> results = new ArrayList<>();
         for (double inches : DEFAULT_DISTANCES_INCHES) {
             double distanceMeters = inches * 0.0254;
             double waypointDistance = Math.max(0.0, distanceMeters - WAYPOINT_OFFSET_METERS);
 
             Solution solution = solve(distanceMeters, waypointDistance, shooterHeight, minAngle, maxAngle, config);
-            results.add(new LerpEntry(distanceMeters, solution.hoodAngleDegrees, solution.flywheelRps));
+
+            ShooterConfig.LerpEntry entry = new ShooterConfig.LerpEntry();
+            entry.distanceMeters = round(distanceMeters, 3);
+            entry.hoodAngleDegrees = round(solution.hoodAngleDegrees, 3);
+            entry.flywheelVelocityRPS = round(solution.flywheelRps, 3);
+            entry.flightTimeSeconds = round(solution.flightTimeSeconds, 6);
+            results.add(entry);
         }
         return results;
     }
@@ -66,7 +69,7 @@ public final class LerpTableGenerator {
         double maxAngle,
         ShooterConfig config
     ) {
-        Solution best = new Solution(0, 0, Double.POSITIVE_INFINITY);
+        Solution best = null;
         for (double angle = minAngle; angle <= maxAngle; angle += Math.toRadians(2.0)) {
             for (double rps = 5.0; rps <= 80.0; rps += 2.0) {
                 ErrorSample sample = simulate(angle, rps, shooterHeight, waypointDistance, targetDistance, config);
@@ -75,10 +78,14 @@ public final class LerpTableGenerator {
                 }
                 double error = sq(sample.waypointHeight - WAYPOINT_HEIGHT_METERS)
                     + sq(sample.targetHeight - HUB_HEIGHT_METERS);
-                if (error < best.error) {
-                    best = new Solution(Math.toDegrees(angle), rps, error);
+                if (best == null || error < best.error) {
+                    best = new Solution(Math.toDegrees(angle), rps, sample.targetFlightTimeSeconds, error);
                 }
             }
+        }
+
+        if (best == null) {
+            throw new IllegalStateException("No ballistic shooting solution for distance " + targetDistance + " meters");
         }
 
         double bestAngle = Math.toRadians(best.hoodAngleDegrees);
@@ -97,7 +104,7 @@ public final class LerpTableGenerator {
                 double error = sq(sample.waypointHeight - WAYPOINT_HEIGHT_METERS)
                     + sq(sample.targetHeight - HUB_HEIGHT_METERS);
                 if (error < best.error) {
-                    best = new Solution(Math.toDegrees(angle), rps, error);
+                    best = new Solution(Math.toDegrees(angle), rps, sample.targetFlightTimeSeconds, error);
                 }
             }
         }
@@ -125,47 +132,59 @@ public final class LerpTableGenerator {
 
         Double waypointHeight = null;
         Double targetHeight = null;
+        Double targetFlightTimeSeconds = null;
 
         double elapsed = 0.0;
         while (state.z() >= 0.0 && state.x() <= targetDistance + 0.1 && elapsed < 5.0) {
             BallisticsPhysics.State2D prev = state;
+            double prevElapsed = elapsed;
             state = BallisticsPhysics.integrateStep2D(state, spinRateRadPerSec, SIMULATION_DT);
             elapsed += SIMULATION_DT;
 
             if (waypointHeight == null && state.x() >= waypointDistance) {
-                waypointHeight = interpolateHeight(prev, state, waypointDistance);
+                double fraction = interpolationFraction(prev, state, waypointDistance);
+                waypointHeight = interpolate(prev.z(), state.z(), fraction);
             }
             if (targetHeight == null && state.x() >= targetDistance) {
-                targetHeight = interpolateHeight(prev, state, targetDistance);
+                double fraction = interpolationFraction(prev, state, targetDistance);
+                targetHeight = interpolate(prev.z(), state.z(), fraction);
+                targetFlightTimeSeconds = prevElapsed + fraction * SIMULATION_DT;
                 break;
             }
         }
 
-        if (waypointHeight == null || targetHeight == null) {
-            return new ErrorSample(false, 0, 0);
+        if (waypointHeight == null || targetHeight == null || targetFlightTimeSeconds == null) {
+            return new ErrorSample(false, 0.0, 0.0, 0.0);
         }
-        return new ErrorSample(true, waypointHeight, targetHeight);
+        return new ErrorSample(true, waypointHeight, targetHeight, targetFlightTimeSeconds);
     }
 
-    private static double interpolateHeight(BallisticsPhysics.State2D prev, BallisticsPhysics.State2D next, double targetX) {
+    private static double interpolationFraction(
+        BallisticsPhysics.State2D prev,
+        BallisticsPhysics.State2D next,
+        double targetX
+    ) {
         if (Math.abs(next.x() - prev.x()) < 1e-6) {
-            return next.z();
+            return 1.0;
         }
-        double t = (targetX - prev.x()) / (next.x() - prev.x());
-        return prev.z() + t * (next.z() - prev.z());
+        return (targetX - prev.x()) / (next.x() - prev.x());
+    }
+
+    private static double interpolate(double start, double end, double fraction) {
+        return start + fraction * (end - start);
     }
 
     private static double calculateExitVelocity(double flywheelRps, ShooterConfig config) {
-        double flywheelSurfaceVel = flywheelRps * 2 * Math.PI * config.flywheelRadiusMeters;
+        double flywheelSurfaceVel = flywheelRps * 2.0 * Math.PI * config.flywheelRadiusMeters;
         double backRollerSurfaceVel = flywheelRps * config.backRollerGearRatio
-            * 2 * Math.PI * config.backRollerRadiusMeters;
+            * 2.0 * Math.PI * config.backRollerRadiusMeters;
         return (flywheelSurfaceVel + backRollerSurfaceVel) / 2.0;
     }
 
     private static double calculateSpinRadPerSec(double flywheelRps, ShooterConfig config) {
-        double flywheelSurfaceVel = flywheelRps * 2 * Math.PI * config.flywheelRadiusMeters;
+        double flywheelSurfaceVel = flywheelRps * 2.0 * Math.PI * config.flywheelRadiusMeters;
         double backRollerSurfaceVel = flywheelRps * config.backRollerGearRatio
-            * 2 * Math.PI * config.backRollerRadiusMeters;
+            * 2.0 * Math.PI * config.backRollerRadiusMeters;
         double deltaV = flywheelSurfaceVel - backRollerSurfaceVel;
         return deltaV / BallisticsConstants.BALL_RADIUS;
     }
@@ -174,39 +193,36 @@ public final class LerpTableGenerator {
         return value * value;
     }
 
+    private static double round(double value, int decimals) {
+        double factor = Math.pow(10.0, decimals);
+        return Math.round(value * factor) / factor;
+    }
+
     private static final class ErrorSample {
         final boolean valid;
         final double waypointHeight;
         final double targetHeight;
+        final double targetFlightTimeSeconds;
 
-        ErrorSample(boolean valid, double waypointHeight, double targetHeight) {
+        ErrorSample(boolean valid, double waypointHeight, double targetHeight, double targetFlightTimeSeconds) {
             this.valid = valid;
             this.waypointHeight = waypointHeight;
             this.targetHeight = targetHeight;
+            this.targetFlightTimeSeconds = targetFlightTimeSeconds;
         }
     }
 
     private static final class Solution {
         final double hoodAngleDegrees;
         final double flywheelRps;
+        final double flightTimeSeconds;
         final double error;
 
-        Solution(double hoodAngleDegrees, double flywheelRps, double error) {
+        Solution(double hoodAngleDegrees, double flywheelRps, double flightTimeSeconds, double error) {
             this.hoodAngleDegrees = hoodAngleDegrees;
             this.flywheelRps = flywheelRps;
+            this.flightTimeSeconds = flightTimeSeconds;
             this.error = error;
-        }
-    }
-
-    public static final class LerpEntry {
-        public final double distanceMeters;
-        public final double hoodAngleDegrees;
-        public final double flywheelVelocityRPS;
-
-        LerpEntry(double distanceMeters, double hoodAngleDegrees, double flywheelVelocityRPS) {
-            this.distanceMeters = distanceMeters;
-            this.hoodAngleDegrees = hoodAngleDegrees;
-            this.flywheelVelocityRPS = flywheelVelocityRPS;
         }
     }
 }

@@ -19,16 +19,17 @@ class LerpTableGeneratorTest {
         config.backRollerGearRatio = 0.65;
         config.backRollerRadiusMeters = 0.03;
 
-        List<LerpTableGenerator.LerpEntry> entries = LerpTableGenerator.generate(config);
+        List<ShooterConfig.LerpEntry> entries = LerpTableGenerator.generate(config);
 
         assertEquals(13, entries.size());
 
         double previousDistance = -1.0;
-        for (LerpTableGenerator.LerpEntry entry : entries) {
+        for (ShooterConfig.LerpEntry entry : entries) {
             assertTrue(entry.distanceMeters > previousDistance);
             assertTrue(entry.hoodAngleDegrees >= config.hoodMinAngleDegrees);
             assertTrue(entry.hoodAngleDegrees <= config.hoodMaxAngleDegrees);
             assertTrue(entry.flywheelVelocityRPS > 0.0);
+            assertTrue(entry.flightTimeSeconds > 0.0);
             previousDistance = entry.distanceMeters;
         }
     }

@@ -1,5 +1,6 @@
 package frc.robot.lib.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.Gson;
@@ -7,7 +8,6 @@ import edu.wpi.first.math.InterpolatingMatrixTreeMap;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import frc.robot.configs.ShooterConfig;
-import frc.robot.constants.FieldConstants;
 import frc.robot.lib.util.ballistics.BallisticsConstants;
 import frc.robot.lib.util.ballistics.BallisticsPhysics;
 import frc.robot.lib.util.ballistics.TrajectoryResult;
@@ -19,53 +19,33 @@ import org.junit.jupiter.api.Test;
 
 class ShotLerpDiagnosticsTest {
     @Test
-    // Regression: solved setpoint exit velocity should reproduce lerp-table flight time under the same ballistics model.
-    void simLerpTable_currentMethodMatchesConfiguredFlightTimes() throws IOException {
+    // Regression: runtime visualization kinematics should match the direct wheel model at the table setpoint.
+    void simLerpTable_runtimeVisualizationKinematicsMatchWheelModel() throws IOException {
         ShooterConfig config = loadShooterConfig("src/main/deploy/configs/shooter/sim.json");
         InterpolatingMatrixTreeMap<Double, N3, N1> lerpTable = config.getLerpTable();
         var shootingEntries = config.getShootingLerpEntries();
 
-        double targetHeight = FieldConstants.Hub.hubCenter.getZ();
-        double meanAbsFlightTimeErrorSeconds = 0.0;
-
         for (ShooterConfig.LerpEntry entry : shootingEntries) {
-            double angleRad = Math.toRadians(entry.hoodAngleDegrees);
-            double rps = entry.flywheelVelocityRPS;
+            double exitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
+                entry.distanceMeters,
+                lerpTable,
+                entry.flywheelVelocityRPS,
+                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config)
+            );
             double spinRateRadPerSec = ShotCalculator.calculateSpinRateRadPerSec(
                 entry.distanceMeters,
                 lerpTable,
-                rps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight
+                entry.flywheelVelocityRPS,
+                measuredRps -> calculateSpinRadPerSec(measuredRps, config)
             );
 
-            double currentMethodExitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
-                entry.distanceMeters,
-                lerpTable,
-                rps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight
+            assertEquals(
+                calculateShotExitVelocityMetersPerSec(entry.flywheelVelocityRPS, config),
+                exitVelocity,
+                1e-9
             );
-
-            TrajectoryResult currentResult = BallisticsPhysics.simulateToDistance(
-                entry.distanceMeters,
-                angleRad,
-                currentMethodExitVelocity,
-                config.shooterPoseZ,
-                targetHeight,
-                spinRateRadPerSec,
-                0.002
-            );
-
-            meanAbsFlightTimeErrorSeconds += Math.abs(currentResult.flightTime() - entry.flightTimeSeconds);
+            assertEquals(calculateSpinRadPerSec(entry.flywheelVelocityRPS, config), spinRateRadPerSec, 1e-9);
         }
-
-        meanAbsFlightTimeErrorSeconds /= shootingEntries.size();
-        assertTrue(meanAbsFlightTimeErrorSeconds < 0.02);
     }
 
     @Test
@@ -110,60 +90,52 @@ class ShotLerpDiagnosticsTest {
 
         System.out.println("PASS impact diagnostics (runtime pass path)");
         System.out.println(
-            "dist_m,hood_deg,setpoint_rps,tof_cfg_s,tof_table_s,tof_setpoint_s,tof_sim_s,setpoint_v_mps,solved_v_mps,setpoint_reached,sim_reached,setpoint_z_m,sim_z_m,impact_err_m,impact_margin_m"
+            "dist_m,hood_deg,setpoint_rps,tof_cfg_s,tof_table_s,tof_direct_s,tof_runtime_s,direct_v_mps,runtime_v_mps,direct_reached,runtime_reached,direct_z_m,runtime_z_m,impact_err_m,impact_margin_m"
         );
 
         for (ShooterConfig.LerpEntry entry : config.passLerpTable) {
             double hoodDeg = passTable.get(entry.distanceMeters).get(0, 0);
             double setpointRps = passTable.get(entry.distanceMeters).get(1, 0);
             double tableFlightTime = passTable.get(entry.distanceMeters).get(2, 0);
-            double setpointExitVelocity = calculateShotExitVelocityMetersPerSec(setpointRps, config);
-            double setpointSpinRate = calculateSpinRadPerSec(setpointRps, config);
+            double directExitVelocity = calculateShotExitVelocityMetersPerSec(setpointRps, config);
+            double directSpinRate = calculateSpinRadPerSec(setpointRps, config);
 
-            TrajectoryResult setpointTrajectory = BallisticsPhysics.simulateToDistance(
+            TrajectoryResult directTrajectory = BallisticsPhysics.simulateToDistance(
                 entry.distanceMeters,
                 Math.toRadians(hoodDeg),
-                setpointExitVelocity,
+                directExitVelocity,
                 config.shooterPoseZ,
                 targetHeight,
-                setpointSpinRate,
+                directSpinRate,
                 0.002
             );
 
-            double solvedExitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
+            double runtimeExitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
                 entry.distanceMeters,
                 passTable,
                 setpointRps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight,
-                false
+                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config)
             );
-            double solvedSpinRate = ShotCalculator.calculateSpinRateRadPerSec(
+            double runtimeSpinRate = ShotCalculator.calculateSpinRateRadPerSec(
                 entry.distanceMeters,
                 passTable,
                 setpointRps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight,
-                false
+                measuredRps -> calculateSpinRadPerSec(measuredRps, config)
             );
 
-            TrajectoryResult result = BallisticsPhysics.simulateToDistance(
+            TrajectoryResult runtimeTrajectory = BallisticsPhysics.simulateToDistance(
                 entry.distanceMeters,
                 Math.toRadians(hoodDeg),
-                solvedExitVelocity,
+                runtimeExitVelocity,
                 config.shooterPoseZ,
                 targetHeight,
-                solvedSpinRate,
+                runtimeSpinRate,
                 0.002
             );
 
             double impactErrorMeters = Math.hypot(
-                result.finalDistance() - entry.distanceMeters,
-                result.finalHeight() - targetHeight
+                runtimeTrajectory.finalDistance() - entry.distanceMeters,
+                runtimeTrajectory.finalHeight() - targetHeight
             );
             double impactMarginMeters = impactToleranceMeters - impactErrorMeters;
             maxImpactErrorMeters = Math.max(maxImpactErrorMeters, impactErrorMeters);
@@ -176,14 +148,14 @@ class ShotLerpDiagnosticsTest {
                 setpointRps,
                 entry.flightTimeSeconds,
                 tableFlightTime,
-                setpointTrajectory.flightTime(),
-                result.flightTime(),
-                setpointExitVelocity,
-                solvedExitVelocity,
-                setpointTrajectory.reachedTarget() ? 1.0 : 0.0,
-                result.reachedTarget() ? 1.0 : 0.0,
-                setpointTrajectory.finalHeight(),
-                result.finalHeight(),
+                directTrajectory.flightTime(),
+                runtimeTrajectory.flightTime(),
+                directExitVelocity,
+                runtimeExitVelocity,
+                directTrajectory.reachedTarget() ? 1.0 : 0.0,
+                runtimeTrajectory.reachedTarget() ? 1.0 : 0.0,
+                directTrajectory.finalHeight(),
+                runtimeTrajectory.finalHeight(),
                 impactErrorMeters,
                 impactMarginMeters
             );
@@ -213,40 +185,32 @@ class ShotLerpDiagnosticsTest {
             double hoodDeg = passTable.get(distance).get(0, 0);
             double setpointRps = passTable.get(distance).get(1, 0);
 
-            double solvedExitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
+            double runtimeExitVelocity = ShotCalculator.calculateExitVelocityMetersPerSec(
                 distance,
                 passTable,
                 setpointRps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight,
-                false
+                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config)
             );
-            double solvedSpinRate = ShotCalculator.calculateSpinRateRadPerSec(
+            double runtimeSpinRate = ShotCalculator.calculateSpinRateRadPerSec(
                 distance,
                 passTable,
                 setpointRps,
-                measuredRps -> calculateShotExitVelocityMetersPerSec(measuredRps, config),
-                measuredRps -> calculateSpinRadPerSec(measuredRps, config),
-                config.shooterPoseZ,
-                targetHeight,
-                false
+                measuredRps -> calculateSpinRadPerSec(measuredRps, config)
             );
 
-            TrajectoryResult result = BallisticsPhysics.simulateToDistance(
+            TrajectoryResult runtimeResult = BallisticsPhysics.simulateToDistance(
                 distance,
                 Math.toRadians(hoodDeg),
-                solvedExitVelocity,
+                runtimeExitVelocity,
                 config.shooterPoseZ,
                 targetHeight,
-                solvedSpinRate,
+                runtimeSpinRate,
                 0.002
             );
 
             double impactErrorMeters = Math.hypot(
-                result.finalDistance() - distance,
-                result.finalHeight() - targetHeight
+                runtimeResult.finalDistance() - distance,
+                runtimeResult.finalHeight() - targetHeight
             );
             double margin = impactToleranceMeters - impactErrorMeters;
 

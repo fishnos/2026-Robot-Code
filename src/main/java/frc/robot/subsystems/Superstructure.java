@@ -846,8 +846,7 @@ public class Superstructure extends SubsystemBase {
             shooter::calculateShotExitVelocityMetersPerSec,
             rps -> shooter.calculateBackSpinRPM(rps) * 2.0 * Math.PI / 60.0,
             context.shooterKinematics().shooterOffsetFromRobotCenter(),
-            context.shooterKinematics().robotHeading(),
-            !context.passingTarget()
+            context.shooterKinematics().robotHeading()
         );
     }
 

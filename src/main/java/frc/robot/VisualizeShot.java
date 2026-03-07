@@ -69,10 +69,7 @@ public class VisualizeShot {
             shooterDistanceToTarget,
             superstructure.getCurrentTargetLerpTable(),
             flywheelRPS,
-            Shooter.getInstance()::calculateShotExitVelocityMetersPerSec,
-            rps -> Shooter.getInstance().calculateBackSpinRPM(rps) * 2.0 * Math.PI / 60.0,
-            shooterPose.getZ(),
-            targetLocation.getZ()
+            rps -> Shooter.getInstance().calculateBackSpinRPM(rps) * 2.0 * Math.PI / 60.0
         );
         double backspinRPM = backspinRadPerSec * 60.0 / (2.0 * Math.PI);
         
