@@ -86,6 +86,39 @@ class SuperstructureShotReadinessTest {
     }
 
     @Test
+    void calculateTurretFieldRelativeErrorDegrees_isZeroWhenRobotAndTurretComposeToTarget() {
+        double errorDeg = Superstructure.calculateTurretFieldRelativeErrorDegrees(
+            30.0 / 360.0,
+            Rotation2d.fromDegrees(45.0),
+            Rotation2d.fromDegrees(75.0)
+        );
+
+        assertEquals(0.0, errorDeg, 1e-9);
+    }
+
+    @Test
+    void calculateTurretFieldRelativeErrorDegrees_wrapsAcrossSignedAngleBoundary() {
+        double errorDeg = Superstructure.calculateTurretFieldRelativeErrorDegrees(
+            20.0 / 360.0,
+            Rotation2d.fromDegrees(170.0),
+            Rotation2d.fromDegrees(-170.0)
+        );
+
+        assertEquals(0.0, errorDeg, 1e-9);
+    }
+
+    @Test
+    void calculateTurretFieldRelativeErrorDegrees_reportsSmallFieldFrameAimDelta() {
+        double errorDeg = Superstructure.calculateTurretFieldRelativeErrorDegrees(
+            30.0 / 360.0,
+            Rotation2d.fromDegrees(45.0),
+            Rotation2d.fromDegrees(80.0)
+        );
+
+        assertEquals(5.0, errorDeg, 1e-9);
+    }
+
+    @Test
     void selectShotDataWithMinDistanceGuard_usesLastInRangeWhenTooClose() {
         ShotData mostRecentTooClose = shotData(1.5);
         ShotData lastInRange = shotData(2.5);

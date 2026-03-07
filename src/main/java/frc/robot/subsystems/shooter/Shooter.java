@@ -627,6 +627,10 @@ public class Shooter extends SubsystemBase {
         return turretResolvedSetpointDeg;
     }
 
+    public double getTurretAngleToleranceDegrees() {
+        return config.turretAngleToleranceRotations * 360.0;
+    }
+
     public boolean getTurretUsedUnwindFallback() {
         return turretUsedUnwindFallback;
     }

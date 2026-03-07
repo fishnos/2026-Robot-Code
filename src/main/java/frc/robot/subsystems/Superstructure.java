@@ -159,6 +159,8 @@ public class Superstructure extends SubsystemBase {
         false,
         false,
         false,
+        false,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -175,10 +177,12 @@ public class Superstructure extends SubsystemBase {
         double maxShotDistanceMeters,
         boolean hoodAtSetpoint,
         boolean turretAtSetpoint,
+        boolean turretFieldRelativeAtSetpoint,
         boolean flywheelAtSetpoint,
-        boolean swerveRotationNominal,
+        boolean swerveOmegaCapped,
         double hoodErrorDegrees,
         double turretErrorDegrees,
+        double turretFieldRelativeErrorDegrees,
         double flywheelErrorRps,
         boolean shooterReady,
         boolean distanceInRange,
@@ -493,7 +497,6 @@ public class Superstructure extends SubsystemBase {
     }
 
     private void applyDynamicShotOutputs(HopperSetpoint hopperSetpoint) {
-        updateSwerveRotationRangeForShotStates();
         applyShotMotionCaps();
         applyShooterAndHopperSetpoints(
             HoodSetpoint.DYNAMIC,
@@ -501,7 +504,7 @@ public class Superstructure extends SubsystemBase {
             FlywheelSetpoint.DYNAMIC,
             hopperSetpoint
         );
-        swerveDrive.setDesiredOmegaOverrideState(SwerveDrive.DesiredOmegaOverrideState.RANGED_ROTATION_CAPPED);
+        swerveDrive.setDesiredOmegaOverrideState(SwerveDrive.DesiredOmegaOverrideState.CAPPED);
         swerveDrive.setDesiredTranslationOverrideState(SwerveDrive.DesiredTranslationOverrideState.CAPPED);
     }
 
@@ -600,17 +603,24 @@ public class Superstructure extends SubsystemBase {
         double hoodErrorDegrees = Math.abs((actualHood - setpointHood) * 360.0);
         double turretErrorRotations = MathUtil.inputModulus(actualTurret - setpointTurret, -0.5, 0.5);
         double turretErrorDegrees = Math.abs(turretErrorRotations * 360.0);
+        double turretFieldRelativeErrorDegrees = calculateTurretFieldRelativeErrorDegrees(
+            actualTurret,
+            robotState.getEstimatedPose().getRotation(),
+            cachedShotData.targetFieldYaw()
+        );
         double flywheelErrorRps = Math.abs(actualFlywheel - setpointFlywheel);
         boolean hoodAtSetpoint = shooter.isHoodAtSetpoint();
         boolean turretAtSetpoint = shooter.isTurretAtSetpoint();
+        boolean turretFieldRelativeAtSetpoint =
+            turretFieldRelativeErrorDegrees <= shooter.getTurretAngleToleranceDegrees();
         boolean flywheelAtSetpoint = shooter.isFlywheelAtSetpoint();
-        boolean swerveRotationNominal = isSwerveRotationNominalForShot();
+        boolean swerveOmegaCapped = isSwerveOmegaCappedForShot();
 
         double effectiveDistance = cachedShotData.effectiveDistance();
         boolean shooterReady = hoodAtSetpoint
             && turretAtSetpoint
             && flywheelAtSetpoint
-            && swerveRotationNominal;
+            && turretFieldRelativeAtSetpoint;
         double minShotDistance = context.minDistanceMeters();
         double maxShotDistance = context.maxDistanceMeters();
         boolean distanceInRange = isDistanceInRange(effectiveDistance, minShotDistance, maxShotDistance);
@@ -625,10 +635,12 @@ public class Superstructure extends SubsystemBase {
             maxShotDistance,
             hoodAtSetpoint,
             turretAtSetpoint,
+            turretFieldRelativeAtSetpoint,
             flywheelAtSetpoint,
-            swerveRotationNominal,
+            swerveOmegaCapped,
             hoodErrorDegrees,
             turretErrorDegrees,
+            turretFieldRelativeErrorDegrees,
             flywheelErrorRps,
             shooterReady,
             distanceInRange,
@@ -646,10 +658,12 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/maxShotDistanceMeters", data.maxShotDistanceMeters());
         Logger.recordOutput("Superstructure/hoodAtSetpoint", data.hoodAtSetpoint());
         Logger.recordOutput("Superstructure/turretAtSetpoint", data.turretAtSetpoint());
+        Logger.recordOutput("Superstructure/turretFieldRelativeAtSetpoint", data.turretFieldRelativeAtSetpoint());
         Logger.recordOutput("Superstructure/flywheelAtSetpoint", data.flywheelAtSetpoint());
-        Logger.recordOutput("Superstructure/swerveRotationNominal", data.swerveRotationNominal());
+        Logger.recordOutput("Superstructure/swerveOmegaCapped", data.swerveOmegaCapped());
         Logger.recordOutput("Superstructure/hoodErrorDegrees", data.hoodErrorDegrees());
         Logger.recordOutput("Superstructure/turretErrorDegrees", data.turretErrorDegrees());
+        Logger.recordOutput("Superstructure/turretFieldRelativeErrorDegrees", data.turretFieldRelativeErrorDegrees());
         Logger.recordOutput("Superstructure/flywheelErrorRps", data.flywheelErrorRps());
         Logger.recordOutput("Superstructure/targetLineOfSightClear", data.lineOfSightClear());
         Logger.recordOutput("Superstructure/targetZoneAllowed", data.zoneAllowsTarget());
@@ -659,10 +673,18 @@ public class Superstructure extends SubsystemBase {
         return Math.abs(landingPosition.getZ() - targetHeightMeters) <= TARGET_HEIGHT_REACH_EPSILON_METERS;
     }
 
-    private boolean isSwerveRotationNominalForShot() {
+    static double calculateTurretFieldRelativeErrorDegrees(
+        double turretAngleRotations,
+        Rotation2d robotYaw,
+        Rotation2d targetFieldYaw
+    ) {
+        double actualFieldYawDeg = robotYaw.plus(Rotation2d.fromRotations(turretAngleRotations)).getDegrees();
+        return Math.abs(MathUtil.inputModulus(actualFieldYawDeg - targetFieldYaw.getDegrees(), -180.0, 180.0));
+    }
+
+    private boolean isSwerveOmegaCappedForShot() {
         SwerveDrive.CurrentOmegaOverrideState omegaState = swerveDrive.getCurrentOmegaOverrideState();
-        return omegaState == SwerveDrive.CurrentOmegaOverrideState.RANGED_NOMINAL
-            || omegaState == SwerveDrive.CurrentOmegaOverrideState.RANGED_CAPPED_NOMINAL;
+        return omegaState == SwerveDrive.CurrentOmegaOverrideState.CAPPED;
     }
 
     static boolean isShotReady(
