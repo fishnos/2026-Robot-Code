@@ -13,8 +13,10 @@ import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
+import frc.robot.commands.AutoClimbCommand;
 import frc.robot.constants.AlignmentConstants;
 // import frc.robot.commands.autos.tower.ScoreL1;
+import frc.robot.constants.ClimbingConstants;
 import frc.robot.constants.Constants;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.lib.BLine.Path;
@@ -85,6 +87,7 @@ public class RobotContainer {
         // Set default superstructure state to HOME
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
         superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.STOWED);
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
 
         // superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_TOP);
 
@@ -131,6 +134,7 @@ public class RobotContainer {
         xboxDriver.getXButton().onTrue(
             new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING))
         );
+        xboxDriver.getYButton().onTrue(new AutoClimbCommand(ClimbingConstants.DEFAULT_TARGET));
         // );
 
         // xboxDriver.getAButton().onTrue(
@@ -203,16 +207,19 @@ public class RobotContainer {
         // Ensure we're in teleop state
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELEOP);
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
     }
 
     public void autonomousInit() {
         // Set up for autonomous
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.IDLE);
     }
 
     public void disabledInit() {
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.DISABLED);
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.DISABLED);
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.DISABLED);
     }
 
