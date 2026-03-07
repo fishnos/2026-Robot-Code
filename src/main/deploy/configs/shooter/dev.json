@@ -158,16 +158,34 @@
   "flywheelVelocityToleranceRPS": 8.0,
   "shootingLerpTable": [
     {
+      "distanceMeters": 1.4,
+      "hoodAngleDegrees": 70,
+      "flywheelVelocityRPS": 24,
+      "flightTimeSeconds": 0.8
+    },
+    {
       "distanceMeters": 2.2,
       "hoodAngleDegrees": 70,
       "flywheelVelocityRPS": 26.0,
       "flightTimeSeconds": 1
     },
     {
-      "distanceMeters": 3.6,
+      "distanceMeters": 3.15,
       "hoodAngleDegrees": 65.0,
+      "flywheelVelocityRPS": 29.0,
+      "flightTimeSeconds": 1.1
+    },
+    {
+      "distanceMeters": 3.72,
+      "hoodAngleDegrees": 60.0,
+      "flywheelVelocityRPS": 29.0,
+      "flightTimeSeconds": 1.1
+    },
+    {
+      "distanceMeters": 5.05,
+      "hoodAngleDegrees": 58.0,
       "flywheelVelocityRPS": 33.0,
-      "flightTimeSeconds": 2
+      "flightTimeSeconds": 1.15
     }
   ]
 }
