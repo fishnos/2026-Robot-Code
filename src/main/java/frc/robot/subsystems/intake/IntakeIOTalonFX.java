@@ -49,8 +49,8 @@ public class IntakeIOTalonFX implements IntakeIO {
 
         intakeConfig.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         intakeConfig.MotorOutput.Inverted = config.isIntakeInverted
-            ? InvertedValue.Clockwise_Positive
-            : InvertedValue.CounterClockwise_Positive;
+                ? InvertedValue.Clockwise_Positive
+                : InvertedValue.CounterClockwise_Positive;
 
         intakeConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
         intakeConfig.CurrentLimits.SupplyCurrentLimit = config.intakeSupplyCurrentLimit;
@@ -73,8 +73,8 @@ public class IntakeIOTalonFX implements IntakeIO {
         intakeVelocityStatusSignal = intakeMotor.getVelocity().clone();
 
         BaseStatusSignal.setUpdateFrequencyForAll(100,
-            intakeTorqueCurrent, intakeTemperature,
-            intakeVelocityStatusSignal);
+                intakeTorqueCurrent, intakeTemperature,
+                intakeVelocityStatusSignal);
 
         intakeMotor.optimizeBusUtilization();
     }
@@ -82,8 +82,8 @@ public class IntakeIOTalonFX implements IntakeIO {
     @Override
     public void updateInputs(IntakeIOInputs inputs) {
         BaseStatusSignal.refreshAll(
-            intakeTorqueCurrent, intakeTemperature,
-            intakeVelocityStatusSignal);
+                intakeTorqueCurrent, intakeTemperature,
+                intakeVelocityStatusSignal);
 
         inputs.velocityRotationsPerSec = intakeVelocityStatusSignal.getValue().in(RotationsPerSecond);
         inputs.appliedVolts = intakeMotor.getMotorVoltage().getValueAsDouble();
