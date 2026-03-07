@@ -27,6 +27,7 @@ import frc.robot.lib.util.ShotKinematicsUtil;
 import frc.robot.lib.util.ShotCalculator;
 import frc.robot.lib.util.ShotCalculator.ShotData;
 import frc.robot.lib.util.ZoneUtil;
+import frc.robot.subsystems.climber.Climber;
 import frc.robot.subsystems.hopper.Hopper;
 import frc.robot.subsystems.hopper.Hopper.HopperSetpoint;
 import frc.robot.subsystems.shooter.Shooter;
@@ -83,6 +84,22 @@ public class Superstructure extends SubsystemBase {
         ALTERNATING
     }
 
+    public enum DesiredClimbState {
+        DISABLED,
+        RETRACTED,
+        EXTENDED,
+        CLIMBING
+    }
+
+    public enum CurrentClimbState {
+        DISABLED,
+        HOME,
+        RETRACTING,
+        EXTENDING,
+        EXTENDED,
+        CLIMBING
+    }
+
     public enum TargetState {
         HUB,
         PASS_ALLIANCE_TOP,
@@ -104,6 +121,8 @@ public class Superstructure extends SubsystemBase {
     private CurrentSystemState currentSystemState = CurrentSystemState.DISABLED;
     private DesiredIntakeState desiredIntakeState = DesiredIntakeState.STOWED;
     private CurrentIntakeState currentIntakeState = CurrentIntakeState.DISABLED;
+    private DesiredClimbState desiredClimbState = DesiredClimbState.RETRACTED;
+    private CurrentClimbState currentClimbState = CurrentClimbState.DISABLED;
     private TargetState desiredTargetState = TargetState.HUB;
     private TargetState currentTargetState = TargetState.HUB;
 
@@ -111,6 +130,7 @@ public class Superstructure extends SubsystemBase {
     private final Hopper hopper = Hopper.getInstance();
     private final SwerveDrive swerveDrive = SwerveDrive.getInstance();
     private final Intake intake = Intake.getInstance();
+    private final Climber climber = Climber.getInstance();
     private final RobotState robotState = RobotState.getInstance();
     private final SuperstructureConfig config;
     private final Rotation2d bumpSnapAngle;
@@ -269,6 +289,7 @@ public class Superstructure extends SubsystemBase {
     private void handleStateTransitions() {
         handleSystemStateTransitions();
         handleIntakeStateTransitions();
+        handleClimbStateTransitions();
     }
 
     private void handleSystemStateTransitions() {
@@ -346,6 +367,15 @@ public class Superstructure extends SubsystemBase {
         };
     }
 
+    private void handleClimbStateTransitions() {
+        if (currentSystemState == CurrentSystemState.DISABLED || desiredClimbState == DesiredClimbState.DISABLED) {
+            currentClimbState = CurrentClimbState.DISABLED;
+            return;
+        }
+
+        currentClimbState = mapClimberCurrentState(climber.getCurrentState());
+    }
+
     /**
      * Executes behavior for the current state and sets subsystem states.
      */
@@ -375,6 +405,11 @@ public class Superstructure extends SubsystemBase {
         }
 
         applyIntakeState(currentIntakeState);
+        applyClimbState(
+            currentSystemState == CurrentSystemState.DISABLED
+                ? DesiredClimbState.DISABLED
+                : desiredClimbState
+        );
     }
 
     private void handleDisabledState() {
@@ -526,6 +561,23 @@ public class Superstructure extends SubsystemBase {
         }
 
         intake.setSetpoint(intake.isStowed() ? IntakeSetpoint.STOWED : IntakeSetpoint.DEPLOYED);
+    }
+
+    private void applyClimbState(DesiredClimbState climbState) {
+        switch (climbState) {
+            case DISABLED:
+                climber.setDesiredState(Climber.DesiredState.DISABLED);
+                break;
+            case RETRACTED:
+                climber.setDesiredState(Climber.DesiredState.RETRACTED);
+                break;
+            case EXTENDED:
+                climber.setDesiredState(Climber.DesiredState.EXTENDED);
+                break;
+            case CLIMBING:
+                climber.setDesiredState(Climber.DesiredState.CLIMBING);
+                break;
+        }
     }
 
     /**
@@ -982,6 +1034,17 @@ public class Superstructure extends SubsystemBase {
         return targetLocation;
     }
 
+    private static CurrentClimbState mapClimberCurrentState(Climber.CurrentState climberCurrentState) {
+        return switch (climberCurrentState) {
+            case DISABLED -> CurrentClimbState.DISABLED;
+            case HOME -> CurrentClimbState.HOME;
+            case RETRACTING -> CurrentClimbState.RETRACTING;
+            case EXTENDING -> CurrentClimbState.EXTENDING;
+            case EXTENDED -> CurrentClimbState.EXTENDED;
+            case CLIMBING -> CurrentClimbState.CLIMBING;
+        };
+    }
+
     // Public interface
     public void setDesiredSystemState(DesiredSystemState desiredSystemState) {
         this.desiredSystemState = desiredSystemState;
@@ -989,6 +1052,10 @@ public class Superstructure extends SubsystemBase {
 
     public void setDesiredIntakeState(DesiredIntakeState desiredIntakeState) {
         this.desiredIntakeState = desiredIntakeState;
+    }
+
+    public void setDesiredClimbState(DesiredClimbState desiredClimbState) {
+        this.desiredClimbState = desiredClimbState;
     }
 
     public void setDesiredTargetState(TargetState desiredTargetState) {
@@ -1015,6 +1082,16 @@ public class Superstructure extends SubsystemBase {
         return desiredIntakeState;
     }
 
+    @AutoLogOutput(key = "Superstructure/currentClimbState")
+    public CurrentClimbState getCurrentClimbState() {
+        return currentClimbState;
+    }
+
+    @AutoLogOutput(key = "Superstructure/desiredClimbState")
+    public DesiredClimbState getDesiredClimbState() {
+        return desiredClimbState;
+    }
+
     @AutoLogOutput(key = "Superstructure/currentTargetState")
     public TargetState getCurrentTargetState() {
         return currentTargetState;
@@ -1031,5 +1108,20 @@ public class Superstructure extends SubsystemBase {
 
     public InterpolatingMatrixTreeMap<Double, N3, N1> getCurrentTargetLerpTable() {
         return isPassingTarget(currentTargetState) ? shooter.getPassLerpTable() : shooter.getLerpTable();
+    }
+
+    @AutoLogOutput(key = "Superstructure/isClimbExtended")
+    public boolean isClimbExtended() {
+        return currentClimbState == CurrentClimbState.EXTENDED;
+    }
+
+    @AutoLogOutput(key = "Superstructure/isClimbAtDesiredState")
+    public boolean isClimbAtDesiredState() {
+        return switch (desiredClimbState) {
+            case DISABLED -> currentClimbState == CurrentClimbState.DISABLED;
+            case RETRACTED -> currentClimbState == CurrentClimbState.HOME;
+            case EXTENDED -> currentClimbState == CurrentClimbState.EXTENDED;
+            case CLIMBING -> currentClimbState == CurrentClimbState.CLIMBING;
+        };
     }
 }
