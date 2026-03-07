@@ -20,8 +20,10 @@ final class VisionUtil {
         int coalescedObservationCount,
         int coalescedDropCount,
         int[] groupSizes,
-        String[] winnerTypes,
-        String[] decisionReasons
+        String[] translationSourceTypes,
+        String[] translationDecisionReasons,
+        String[] rotationSourceTypes,
+        String[] rotationDecisionReasons
     ) {}
 
     private record ObservationSelection(PoseObservation winner, String reason) {}
@@ -63,7 +65,17 @@ final class VisionUtil {
 
     static CoalescedObservationsResult coalesceCorrelatedObservations(List<PoseObservation> observations) {
         if (observations.isEmpty()) {
-            return new CoalescedObservationsResult(List.of(), 0, 0, 0, new int[0], new String[0], new String[0]);
+            return new CoalescedObservationsResult(
+                List.of(),
+                0,
+                0,
+                0,
+                new int[0],
+                new String[0],
+                new String[0],
+                new String[0],
+                new String[0]
+            );
         }
 
         List<PoseObservation> sortedObservations = new ArrayList<>(observations);
@@ -71,8 +83,10 @@ final class VisionUtil {
 
         List<PoseObservation> coalescedObservations = new ArrayList<>();
         List<Integer> groupSizes = new ArrayList<>();
-        List<String> winnerTypes = new ArrayList<>();
-        List<String> decisionReasons = new ArrayList<>();
+        List<String> translationSourceTypes = new ArrayList<>();
+        List<String> translationDecisionReasons = new ArrayList<>();
+        List<String> rotationSourceTypes = new ArrayList<>();
+        List<String> rotationDecisionReasons = new ArrayList<>();
         List<PoseObservation> currentGroup = new ArrayList<>();
         PoseObservation previousObservation = null;
 
@@ -85,12 +99,28 @@ final class VisionUtil {
                 continue;
             }
 
-            appendCoalescedGroup(currentGroup, coalescedObservations, groupSizes, winnerTypes, decisionReasons);
+            appendCoalescedGroup(
+                currentGroup,
+                coalescedObservations,
+                groupSizes,
+                translationSourceTypes,
+                translationDecisionReasons,
+                rotationSourceTypes,
+                rotationDecisionReasons
+            );
             currentGroup.clear();
             currentGroup.add(observation);
             previousObservation = observation;
         }
-        appendCoalescedGroup(currentGroup, coalescedObservations, groupSizes, winnerTypes, decisionReasons);
+        appendCoalescedGroup(
+            currentGroup,
+            coalescedObservations,
+            groupSizes,
+            translationSourceTypes,
+            translationDecisionReasons,
+            rotationSourceTypes,
+            rotationDecisionReasons
+        );
 
         return new CoalescedObservationsResult(
             coalescedObservations,
@@ -98,8 +128,10 @@ final class VisionUtil {
             coalescedObservations.size(),
             observations.size() - coalescedObservations.size(),
             toIntArray(groupSizes),
-            winnerTypes.toArray(new String[0]),
-            decisionReasons.toArray(new String[0])
+            translationSourceTypes.toArray(new String[0]),
+            translationDecisionReasons.toArray(new String[0]),
+            rotationSourceTypes.toArray(new String[0]),
+            rotationDecisionReasons.toArray(new String[0])
         );
     }
 
@@ -107,17 +139,17 @@ final class VisionUtil {
         PoseObservation firstObservation,
         PoseObservation secondObservation
     ) {
-        return choosePreferredObservationWithReason(firstObservation, secondObservation).winner();
+        return choosePreferredTranslationObservationWithReason(firstObservation, secondObservation).winner();
     }
 
     static String getSelectionReason(
         PoseObservation firstObservation,
         PoseObservation secondObservation
     ) {
-        return choosePreferredObservationWithReason(firstObservation, secondObservation).reason();
+        return choosePreferredTranslationObservationWithReason(firstObservation, secondObservation).reason();
     }
 
-    private static ObservationSelection choosePreferredObservationWithReason(
+    private static ObservationSelection choosePreferredTranslationObservationWithReason(
         PoseObservation firstObservation,
         PoseObservation secondObservation
     ) {
@@ -171,25 +203,71 @@ final class VisionUtil {
         List<PoseObservation> group,
         List<PoseObservation> coalescedObservations,
         List<Integer> groupSizes,
-        List<String> winnerTypes,
-        List<String> decisionReasons
+        List<String> translationSourceTypes,
+        List<String> translationDecisionReasons,
+        List<String> rotationSourceTypes,
+        List<String> rotationDecisionReasons
     ) {
         if (group.isEmpty()) {
             return;
         }
 
-        PoseObservation winner = group.get(0);
-        String reason = "single_observation";
+        PoseObservation translationWinner = group.get(0);
+        String translationReason = "single_observation";
         for (int i = 1; i < group.size(); i++) {
-            ObservationSelection selection = choosePreferredObservationWithReason(winner, group.get(i));
-            winner = selection.winner();
-            reason = selection.reason();
+            ObservationSelection selection =
+                choosePreferredTranslationObservationWithReason(translationWinner, group.get(i));
+            translationWinner = selection.winner();
+            translationReason = selection.reason();
         }
 
-        coalescedObservations.add(winner);
+        ObservationSelection rotationSelection = choosePreferredRotationObservation(group, translationWinner);
+        PoseObservation rotationWinner = rotationSelection.winner();
+        PoseObservation coalescedObservation =
+            new PoseObservation(
+                translationWinner.timestamp(),
+                new Pose3d(translationWinner.pose().getTranslation(), rotationWinner.pose().getRotation()),
+                translationWinner.ambiguity(),
+                translationWinner.tagCount(),
+                translationWinner.averageTagDistance(),
+                translationWinner.type(),
+                rotationWinner.rotationAmbiguity(),
+                rotationWinner.rotationTagCount(),
+                rotationWinner.rotationAverageTagDistance(),
+                rotationWinner.rotationType()
+            );
+
+        coalescedObservations.add(coalescedObservation);
         groupSizes.add(group.size());
-        winnerTypes.add(winner.type().name());
-        decisionReasons.add(reason);
+        translationSourceTypes.add(translationWinner.type().name());
+        translationDecisionReasons.add(translationReason);
+        rotationSourceTypes.add(rotationWinner.rotationType().name());
+        rotationDecisionReasons.add(rotationSelection.reason());
+    }
+
+    private static ObservationSelection choosePreferredRotationObservation(
+        List<PoseObservation> group,
+        PoseObservation translationWinner
+    ) {
+        List<PoseObservation> megatag1Observations = new ArrayList<>();
+        for (PoseObservation observation : group) {
+            if (observation.rotationType() == PoseObservationType.MEGATAG_1) {
+                megatag1Observations.add(observation);
+            }
+        }
+        if (megatag1Observations.isEmpty()) {
+            return new ObservationSelection(translationWinner, "no_megatag1_rotation");
+        }
+
+        PoseObservation rotationWinner = megatag1Observations.get(0);
+        String rotationReason = "single_megatag1_rotation";
+        for (int i = 1; i < megatag1Observations.size(); i++) {
+            ObservationSelection selection =
+                choosePreferredTranslationObservationWithReason(rotationWinner, megatag1Observations.get(i));
+            rotationWinner = selection.winner();
+            rotationReason = selection.reason();
+        }
+        return new ObservationSelection(rotationWinner, rotationReason);
     }
 
     private static int[] toIntArray(List<Integer> values) {

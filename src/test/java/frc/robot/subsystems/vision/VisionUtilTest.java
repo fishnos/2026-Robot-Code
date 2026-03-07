@@ -49,7 +49,7 @@ class VisionUtilTest {
         VisionIO.PoseObservation megatag1Observation =
             new VisionIO.PoseObservation(
                 1.000,
-                new Pose3d(1.0, 2.0, 0.0, new Rotation3d()),
+                new Pose3d(1.0, 2.0, 0.0, new Rotation3d(0.0, 0.0, 0.75)),
                 0.3,
                 2,
                 3.0,
@@ -58,7 +58,7 @@ class VisionUtilTest {
         VisionIO.PoseObservation megatag2Observation =
             new VisionIO.PoseObservation(
                 1.003,
-                new Pose3d(1.1, 2.1, 0.0, new Rotation3d()),
+                new Pose3d(1.1, 2.1, 0.0, new Rotation3d(0.0, 0.0, 0.25)),
                 0.0,
                 2,
                 3.0,
@@ -72,10 +72,16 @@ class VisionUtilTest {
         assertEquals(1, observations.observations().size());
         assertEquals(1, observations.coalescedObservationCount());
         assertEquals(VisionIO.PoseObservationType.MEGATAG_2, observations.observations().get(0).type());
+        assertEquals(VisionIO.PoseObservationType.MEGATAG_1, observations.observations().get(0).rotationType());
+        assertEquals(1.1, observations.observations().get(0).pose().getX(), 1e-9);
+        assertEquals(2.1, observations.observations().get(0).pose().getY(), 1e-9);
+        assertEquals(0.75, observations.observations().get(0).pose().getRotation().getZ(), 1e-9);
         assertEquals(1, observations.coalescedDropCount());
         assertEquals(2, observations.groupSizes()[0]);
-        assertEquals("MEGATAG_2", observations.winnerTypes()[0]);
-        assertEquals("preferred_type", observations.decisionReasons()[0]);
+        assertEquals("MEGATAG_2", observations.translationSourceTypes()[0]);
+        assertEquals("preferred_type", observations.translationDecisionReasons()[0]);
+        assertEquals("MEGATAG_1", observations.rotationSourceTypes()[0]);
+        assertEquals("single_megatag1_rotation", observations.rotationDecisionReasons()[0]);
     }
 
     @Test
@@ -108,8 +114,32 @@ class VisionUtilTest {
         assertEquals(0, observations.coalescedDropCount());
         assertEquals(1, observations.groupSizes()[0]);
         assertEquals(1, observations.groupSizes()[1]);
-        assertEquals("single_observation", observations.decisionReasons()[0]);
-        assertEquals("single_observation", observations.decisionReasons()[1]);
+        assertEquals("single_observation", observations.translationDecisionReasons()[0]);
+        assertEquals("single_observation", observations.translationDecisionReasons()[1]);
+        assertEquals("single_megatag1_rotation", observations.rotationDecisionReasons()[0]);
+        assertEquals("no_megatag1_rotation", observations.rotationDecisionReasons()[1]);
+    }
+
+    @Test
+    void coalesceCorrelatedObservations_fallsBackToMegatag2RotationWithoutMegatag1() {
+        VisionIO.PoseObservation megatag2Observation =
+            new VisionIO.PoseObservation(
+                1.000,
+                new Pose3d(1.2, 2.3, 0.0, new Rotation3d(0.0, 0.0, 0.4)),
+                0.0,
+                2,
+                2.5,
+                VisionIO.PoseObservationType.MEGATAG_2
+            );
+
+        VisionUtil.CoalescedObservationsResult observations =
+            VisionUtil.coalesceCorrelatedObservations(List.of(megatag2Observation));
+
+        assertEquals(1, observations.observations().size());
+        assertEquals(VisionIO.PoseObservationType.MEGATAG_2, observations.observations().get(0).type());
+        assertEquals(VisionIO.PoseObservationType.MEGATAG_2, observations.observations().get(0).rotationType());
+        assertEquals("MEGATAG_2", observations.rotationSourceTypes()[0]);
+        assertEquals("no_megatag1_rotation", observations.rotationDecisionReasons()[0]);
     }
 
     @Test

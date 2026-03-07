@@ -225,22 +225,17 @@ public class Vision extends SubsystemBase {
             // Loop over pose observations
             for (var observation : inputs[cameraIndex].robotPoseObservations) {
                 totalObservationCount++;
+                boolean translationRateTooHigh = false;
                 boolean rotationRateTooHigh = false;
                 var rotationRateAtTime = rotationRateBuffer.getSample(observation.timestamp());
                 if (rotationRateAtTime.isPresent()) {
                     double observationRotationRateDegreesPerSecond = Math.abs(rotationRateAtTime.get());
-
-                    double maxRotationRateThreshold;
-                    if (observation.type() == PoseObservationType.MEGATAG_1) {
-                        maxRotationRateThreshold = config.maxRotationRateMegatag1DegreesPerSecond;
-                    } else if (observation.type() == PoseObservationType.MEGATAG_2) {
-                        maxRotationRateThreshold = config.maxRotationRateMegatag2DegreesPerSecond;
-                    } else {
-                        // Default to MegaTag1 threshold for other types (like PhotonVision)
-                        maxRotationRateThreshold = config.maxRotationRateMegatag1DegreesPerSecond;
-                    }
-
-                    rotationRateTooHigh = observationRotationRateDegreesPerSecond > maxRotationRateThreshold;
+                    translationRateTooHigh =
+                        observationRotationRateDegreesPerSecond
+                            > getMaxRotationRateThreshold(observation.type());
+                    rotationRateTooHigh =
+                        observationRotationRateDegreesPerSecond
+                            > getMaxRotationRateThreshold(observation.rotationType());
                 }
 
                 boolean rejectPose =
@@ -249,7 +244,7 @@ public class Vision extends SubsystemBase {
                             && observation.ambiguity() > config.maxAmbiguity)
                         || Math.abs(observation.pose().getZ()) > config.maxZError
                         || !VisionUtil.isPoseWithinField(observation.pose())
-                        || rotationRateTooHigh;
+                        || translationRateTooHigh;
 
                 if (shouldLogDetailedPoseArrays) {
                     robotPoses.add(observation.pose());
@@ -268,17 +263,28 @@ public class Vision extends SubsystemBase {
                     continue;
                 }
 
-                double stdDevFactor =
-                    Math.pow(observation.averageTagDistance(), 2.0) / observation.tagCount();
-                double linearStdDev = config.linearStdDevBaseline * stdDevFactor;
-                double angularStdDev = config.angularStdDevBaseline * stdDevFactor;
-                if (observation.type() == PoseObservationType.MEGATAG_1) {
-                    linearStdDev *= config.linearStdDevMegatag1Factor;
-                    angularStdDev *= config.angularStdDevMegatag1Factor;
-                } else if (observation.type() == PoseObservationType.MEGATAG_2) {
-                    linearStdDev *= config.linearStdDevMegatag2Factor;
-                    angularStdDev *= config.angularStdDevMegatag2Factor;
-                }
+                double linearStdDev =
+                    config.linearStdDevBaseline
+                        * computeStdDevFactor(observation.averageTagDistance(), observation.tagCount())
+                        * getLinearStdDevTypeFactor(observation.type());
+                boolean useMegatag1Rotation =
+                    observation.rotationType() == PoseObservationType.MEGATAG_1
+                        && observation.rotationTagCount() > 0
+                        && !(observation.rotationTagCount() == 1
+                            && observation.rotationAmbiguity() > config.maxAmbiguity)
+                        && !rotationRateTooHigh;
+                double angularSourceDistance =
+                    useMegatag1Rotation
+                        ? observation.rotationAverageTagDistance()
+                        : observation.averageTagDistance();
+                int angularSourceTagCount =
+                    useMegatag1Rotation ? observation.rotationTagCount() : observation.tagCount();
+                PoseObservationType angularSourceType =
+                    useMegatag1Rotation ? observation.rotationType() : PoseObservationType.MEGATAG_2;
+                double angularStdDev =
+                    config.angularStdDevBaseline
+                        * computeStdDevFactor(angularSourceDistance, angularSourceTagCount)
+                        * getAngularStdDevTypeFactor(angularSourceType);
                 if (config.cameraStdDevFactors != null && cameraIndex < config.cameraStdDevFactors.length) {
                     linearStdDev *= config.cameraStdDevFactors[cameraIndex];
                     angularStdDev *= config.cameraStdDevFactors[cameraIndex];
@@ -337,12 +343,20 @@ public class Vision extends SubsystemBase {
                 inputs[cameraIndex].coalescedGroupSizes
             );
             Logger.recordOutput(
-                cameraTimingPrefix + "/CoalescedWinnerTypes",
-                inputs[cameraIndex].coalescedWinnerTypes
+                cameraTimingPrefix + "/CoalescedTranslationSourceTypes",
+                inputs[cameraIndex].coalescedTranslationSourceTypes
             );
             Logger.recordOutput(
-                cameraTimingPrefix + "/CoalescedDecisionReasons",
-                inputs[cameraIndex].coalescedDecisionReasons
+                cameraTimingPrefix + "/CoalescedTranslationDecisionReasons",
+                inputs[cameraIndex].coalescedTranslationDecisionReasons
+            );
+            Logger.recordOutput(
+                cameraTimingPrefix + "/CoalescedRotationSourceTypes",
+                inputs[cameraIndex].coalescedRotationSourceTypes
+            );
+            Logger.recordOutput(
+                cameraTimingPrefix + "/CoalescedRotationDecisionReasons",
+                inputs[cameraIndex].coalescedRotationDecisionReasons
             );
             if (shouldLogDetailedPoseArrays) {
                 Logger.recordOutput(cameraTimingPrefix + "/TagPoses", inputs[cameraIndex].tagPoses);
@@ -393,5 +407,30 @@ public class Vision extends SubsystemBase {
         }
         lastImuMode = imuMode;
         lastImuModeWriteTimestampSeconds = currentTime;
+    }
+
+    private double getMaxRotationRateThreshold(PoseObservationType type) {
+        return switch (type) {
+            case MEGATAG_1, PHOTONVISION -> config.maxRotationRateMegatag1DegreesPerSecond;
+            case MEGATAG_2 -> config.maxRotationRateMegatag2DegreesPerSecond;
+        };
+    }
+
+    private double getLinearStdDevTypeFactor(PoseObservationType type) {
+        return switch (type) {
+            case MEGATAG_1, PHOTONVISION -> config.linearStdDevMegatag1Factor;
+            case MEGATAG_2 -> config.linearStdDevMegatag2Factor;
+        };
+    }
+
+    private double getAngularStdDevTypeFactor(PoseObservationType type) {
+        return switch (type) {
+            case MEGATAG_1, PHOTONVISION -> config.angularStdDevMegatag1Factor;
+            case MEGATAG_2 -> config.angularStdDevMegatag2Factor;
+        };
+    }
+
+    private static double computeStdDevFactor(double averageTagDistance, int tagCount) {
+        return Math.pow(averageTagDistance, 2.0) / Math.max(tagCount, 1);
     }
 }

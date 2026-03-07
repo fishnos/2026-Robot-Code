@@ -117,8 +117,10 @@ public class VisionIOLimelight implements VisionIO {
         inputs.coalescedObservationCount = coalescedObservations.coalescedObservationCount();
         inputs.coalescedDropCount = coalescedObservations.coalescedDropCount();
         inputs.coalescedGroupSizes = coalescedObservations.groupSizes();
-        inputs.coalescedWinnerTypes = coalescedObservations.winnerTypes();
-        inputs.coalescedDecisionReasons = coalescedObservations.decisionReasons();
+        inputs.coalescedTranslationSourceTypes = coalescedObservations.translationSourceTypes();
+        inputs.coalescedTranslationDecisionReasons = coalescedObservations.translationDecisionReasons();
+        inputs.coalescedRotationSourceTypes = coalescedObservations.rotationSourceTypes();
+        inputs.coalescedRotationDecisionReasons = coalescedObservations.rotationDecisionReasons();
 
         inputs.tagIds = new int[tagIds.size()];
         int i = 0;
