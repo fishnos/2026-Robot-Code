@@ -26,11 +26,13 @@ import frc.robot.lib.input.XboxController;
 import frc.robot.lib.util.ballistics.ProjectileVisualizer;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.Superstructure.TargetState;
+import frc.robot.subsystems.climber.Climber;
 import frc.robot.subsystems.hopper.Hopper;
 import frc.robot.subsystems.hopper.Hopper.HopperSetpoint;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.swerve.SwerveDrive;
+import frc.robot.subsystems.swerve.SwerveDrive.DesiredTranslationOverrideState;
 // import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.Vision;
 
@@ -55,6 +57,8 @@ public class RobotContainer {
     private final Vision vision = Vision.getInstance();
     private final Shooter shooter = Shooter.getInstance();
     private final Hopper hopper = Hopper.getInstance();
+    private final Intake intake = Intake.getInstance();
+    private final Climber climber = Climber.getInstance();
 
     LoggedNetworkNumber shooterFlywheelSet = new LoggedNetworkNumber("flywheelSet", 0);
     LoggedNetworkNumber turret = new LoggedNetworkNumber("turretSet", 180);
@@ -188,8 +192,45 @@ public class RobotContainer {
         //     new InstantCommand(() -> Intake.getInstance().setSetpoint(Intake.IntakeSetpoint.STOWED))
         // );
 
+
+
+        xboxDriver.getRightBumper().onTrue(
+            new InstantCommand(() -> {
+                climber.setSetpoint(Climber.ClimberSetpoint.READY); 
+                swerveDrive.setDesiredTranslationOverrideState(DesiredTranslationOverrideState.FROZEN);
+            })
+        );
+
+        xboxDriver.getRightBumper().onFalse(
+            new InstantCommand(() -> {
+                climber.setSetpoint(Climber.ClimberSetpoint.LIFTED);
+                swerveDrive.setDesiredTranslationOverrideState(DesiredTranslationOverrideState.NONE);
+            })
+        );
+
+
+        new Trigger(() -> 
+            xboxTester.getLeftTriggerButton(0.5).getAsBoolean() && 
+            !xboxTester.getRightTriggerButton(0.5).getAsBoolean()
+        )
+        .onTrue(intake.runOnce(() -> intake.setSetpoint(Intake.IntakeSetpoint.INTAKING)))
+        .onFalse(intake.runOnce(() -> intake.setSetpoint(Intake.IntakeSetpoint.DISABLED)));
+
+                
+
+        xboxDriver.getLeftBumper().onTrue(
+            new InstantCommand(() -> {
+                superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.ALTERNATING);
+            })
+        );
+
+        xboxDriver.getLeftBumper().onFalse(
+            new InstantCommand(() -> {
+                superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.STOWED);
+            })
+        );
         // Test snap-to-angle bindings with split superstructure states:
-        // xboxDriver.getAButton().onTrue(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.BUMP)));
+      // xboxDriver.getAButton().onTrue(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.BUMP)));
         // xboxDriver.getAButton().onFalse(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
     }
 
