@@ -373,7 +373,7 @@ public class SwerveDrive extends SubsystemBase {
                 drivetrainConfig.followPathCrossTrackKI,
                 drivetrainConfig.followPathCrossTrackKD
             )
-        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true).withShouldMirror(() -> true);
+        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true).withShouldMirror(() -> false);
 
         // Configure omega override PID controllers with velocity limiting
         omegaOverridePIDController = new PIDController(

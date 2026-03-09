@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.constants.AlignmentConstants;
@@ -96,12 +97,12 @@ public class RobotContainer {
     }
 
     private void registerEventTriggers() {
-        // FollowPath.registerEventTrigger("test1", new InstantCommand(() -> {
-        //     Logger.recordOutput("In a command", true);
-        // }));
-        // FollowPath.registerEventTrigger("test2", () -> {
-        //     System.out.println("As a runnable");
-        // });
+        FollowPath.registerEventTrigger("prepare_for_shot", new InstantCommand(() -> {
+            superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.READY_FOR_SHOT);
+        }));
+        FollowPath.registerEventTrigger("shoot", () -> {
+            superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
+        });
     }
 
     private void configureBindings() {
@@ -228,7 +229,8 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return followPath(new Path("1"), true).andThen(followPath(new Path("2"), false));
+        return followPath(new Path("outpost"), false).andThen(new WaitCommand(8.0)).andThen(followPath(new Path("outpost_to_tower"), false))
+        .andThen(new WaitCommand(3.0)).andThen(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
         // return null;
     }
 }
