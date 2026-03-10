@@ -88,7 +88,7 @@ public class ClimberIOTalonFX implements ClimberIO {
         climberTorqueCurrent = climberMotor.getTorqueCurrent().clone();
         climberTemperature = climberMotor.getDeviceTemp().clone();
 
-        BaseStatusSignal.setUpdateFrequencyForAll(100,
+        BaseStatusSignal.setUpdateFrequencyForAll(50,
             climberPositionStatusSignal, climberVelocityStatusSignal,
             climberMotorVoltage, climberTorqueCurrent, climberTemperature);
 
