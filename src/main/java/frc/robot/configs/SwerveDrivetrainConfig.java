@@ -25,20 +25,14 @@ public class SwerveDrivetrainConfig {
     public double translationControllerKI;
     public double translationControllerKD;
 
-    public double rotationControllerKP;
-    public double rotationControllerKI;
-    public double rotationControllerKD;
-
     public double translationToleranceMeters;
     public double translationVelocityToleranceMeters;
 
-    public double rotationToleranceDeg;
-    public double rotationVelocityToleranceDegPerSec;
-
-    public double rangedRotationKP;
-    public double rangedRotationKI;
-    public double rangedRotationKD;
+    public double omegaOverrideKP;
+    public double omegaOverrideKI;
+    public double omegaOverrideKD;
     public double rangedRotationToleranceDeg;
+    public double snappedToleranceDeg;
 
     public double followPathTranslationKP;
     public double followPathTranslationKI;
@@ -71,13 +65,6 @@ public class SwerveDrivetrainConfig {
     public PIDController getTranslationController() {
         PIDController controller = new PIDController(translationControllerKP, translationControllerKI, translationControllerKD);
         controller.setTolerance(translationToleranceMeters, translationVelocityToleranceMeters);
-        return controller;
-    }
-
-    public PIDController getRotationController() {
-        PIDController controller = new PIDController(rotationControllerKP, rotationControllerKI, rotationControllerKD);
-        controller.enableContinuousInput(-Math.PI, Math.PI);
-        controller.setTolerance(Math.toRadians(rotationToleranceDeg), Math.toRadians(rotationVelocityToleranceDegPerSec));
         return controller;
     }
 }

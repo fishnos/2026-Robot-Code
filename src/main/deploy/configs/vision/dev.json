@@ -13,7 +13,7 @@
   "disabledImuMode": 1,
   "enabledImuMode": 4,
   "maxAmbiguity": 0.4,
-  "maxZError": 0.13,
+  "maxZError": 0.5,
   "linearStdDevBaseline": 0.02,
   "angularStdDevBaseline": 0.5,
   "linearStdDevMegatag1Factor": 999999.0,

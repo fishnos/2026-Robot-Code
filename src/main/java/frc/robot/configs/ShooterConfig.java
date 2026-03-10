@@ -29,9 +29,6 @@ public class ShooterConfig {
     public int hoodCanId;
     public boolean isHoodInverted;
 
-    public double hoodSupplyCurrentLimit;
-    public double hoodSupplyCurrentLimitLowerTime;
-    public double hoodSupplyCurrentLimitLowerLimit;
     public double hoodStatorCurrentLimit;
     public double hoodPeakForwardTorqueCurrent;
     public double hoodPeakReverseTorqueCurrent;
@@ -52,9 +49,6 @@ public class ShooterConfig {
     public int turretCanId;
     public boolean isTurretInverted;
 
-    public double turretSupplyCurrentLimit;
-    public double turretSupplyCurrentLimitLowerTime;
-    public double turretSupplyCurrentLimitLowerLimit;
     public double turretStatorCurrentLimit;
     public double turretPeakForwardTorqueCurrent;
     public double turretPeakReverseTorqueCurrent;
@@ -80,9 +74,6 @@ public class ShooterConfig {
     public boolean isFlywheelInverted;
     public boolean isFlywheelFollowerOppositeDirection;
 
-    public double flywheelSupplyCurrentLimit;
-    public double flywheelSupplyCurrentLimitLowerTime;
-    public double flywheelSupplyCurrentLimitLowerLimit;
     public double flywheelStatorCurrentLimit;
     public double flywheelPeakForwardTorqueCurrent;
     public double flywheelPeakReverseTorqueCurrent;
@@ -96,6 +87,8 @@ public class ShooterConfig {
 
     public double flywheelMotorToOutputShaftRatio;
     public double flywheelRadiusMeters;
+    public double backRollerGearRatio;
+    public double backRollerRadiusMeters;
 
     public double shooterPoseX;
     public double shooterPoseY;

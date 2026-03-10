@@ -10,6 +10,7 @@ import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.configs.SwerveModuleGeneralConfig;
+import frc.robot.lib.util.DashboardMotorControlLoopConfigurator.MotorControlLoopConfig;
 
 public class ModuleIOSim implements ModuleIO {
     private final DCMotor driveMotorModel = DCMotor.getKrakenX60Foc(1);
@@ -76,9 +77,11 @@ public class ModuleIOSim implements ModuleIO {
         
         inputs.drivePositionMeters = driveSim.getAngularPositionRad() * 0.0485614385; // wheel radius in meters
         inputs.driveVelocityMetersPerSec = driveSim.getAngularVelocityRadPerSec() * 0.0485614385;
+        inputs.driveAppliedVolts = driveSim.getInputVoltage();
 
         inputs.steerPosition = new Rotation2d(steerSim.getAngularPosition());
         inputs.steerVelocityRadPerSec = steerSim.getAngularVelocityRadPerSec();
+        inputs.steerAppliedVolts = steerSim.getInputVoltage();
 
         inputs.steerEncoderAbsolutePosition = inputs.steerPosition;
         inputs.steerEncoderPosition = inputs.steerPosition;
@@ -118,5 +121,15 @@ public class ModuleIOSim implements ModuleIO {
 
         isDriveClosedLoop = false;
         isSteerClosedLoop = true;
+    }
+
+    @Override
+    public void configureDriveControlLoop(MotorControlLoopConfig config) {
+        // No-op in sim
+    }
+
+    @Override
+    public void configureSteerControlLoop(MotorControlLoopConfig config) {
+        // No-op in sim
     }
 }

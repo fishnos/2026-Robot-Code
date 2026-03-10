@@ -122,15 +122,18 @@ public class ShooterIOSim implements ShooterIO {
 
         inputs.hoodAngleRotations = hoodSim.getAngularPositionRotations();
         inputs.hoodVelocityRotationsPerSec = hoodSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
+        inputs.hoodAppliedVolts = hoodSim.getInputVoltage();
 
         inputs.turretAngleRotations = turretSim.getAngularPositionRotations();
         inputs.turretVelocityRotationsPerSec = turretSim.getAngularVelocityRadPerSec() / (2 * Math.PI);
+        inputs.turretAppliedVolts = turretSim.getInputVoltage();
 
         inputs.flywheelVelocityRotationsPerSec = flywheelSim.getAngularVelocityRadPerSec();
         inputs.flywheelAppliedVolts = flywheelSim.getInputVoltage();
         inputs.flywheelTorqueCurrent = flywheelSim.getCurrentDrawAmps();
 
         // Follower simulated as identical to leader
+        inputs.flywheelFollowerAppliedVolts = flywheelSim.getInputVoltage();
         inputs.flywheelFollowerTorqueCurrent = flywheelSim.getCurrentDrawAmps();
 
         inputs.hoodTorqueCurrent = hoodSim.getCurrentDrawAmps();

@@ -28,14 +28,19 @@ import org.littletonrobotics.junction.Logger;
 
 public class Vision extends SubsystemBase {
     private static Vision instance = null;
-    private static final VisionConfig config = ConfigLoader.load("vision", VisionConfig.class);
+    private static final VisionConfig config = ConfigLoader.load(
+        "vision",
+        ConfigLoader.getModeFolder(Constants.SimOnlySubsystems.VISION),
+        VisionConfig.class
+    );
     public static Vision getInstance() {
         if (instance == null) {
             RobotState robotState = RobotState.getInstance();
+            boolean useSimulation = Constants.shouldUseSimulation(Constants.SimOnlySubsystems.VISION);
             List<VisionIO> ioList = new ArrayList<>();
             List<VisionConfig.CameraConfig> cameraConfigs =
                 config.cameras != null ? config.cameras : List.of();
-            if (Constants.currentMode == Constants.Mode.SIM) {
+            if (useSimulation) {
                 for (VisionConfig.CameraConfig camera : cameraConfigs) {
                     ioList.add(
                         new VisionIOPhotonVisionSim(

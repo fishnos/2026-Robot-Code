@@ -6,9 +6,6 @@ public class KickerConfig {
     public int kickerCanId;
     public boolean isKickerInverted;
 
-    public double kickerSupplyCurrentLimit;
-    public double kickerSupplyCurrentLimitLowerTime;
-    public double kickerSupplyCurrentLimitLowerLimit;
     public double kickerStatorCurrentLimit;
     public double kickerPeakForwardTorqueCurrent;
     public double kickerPeakReverseTorqueCurrent;

@@ -9,8 +9,8 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.lib.util.ProjectileVisualizer;
+import frc.robot.constants.FieldConstants;
+import frc.robot.lib.util.ballistics.ProjectileVisualizer;
 import frc.robot.subsystems.shooter.Shooter;
 
 public class VisualizeShot {
@@ -44,7 +44,9 @@ public class VisualizeShot {
         
         shooterPose = new Pose3d(shooterPose.getTranslation(), newRotation);
 
+        double flywheelRPS = Shooter.getInstance().getFlywheelVelocityRotationsPerSec();
         double exitVelocity = Shooter.getInstance().getShotExitVelocityMetersPerSec();
+        double backspinRPM = Shooter.getInstance().calculateBackSpinRPM(flywheelRPS);
         
         // Include tangential velocity from robot rotation (omega cross r)
         double omega = fieldRelativeSpeeds.omegaRadiansPerSecond;
@@ -69,7 +71,8 @@ public class VisualizeShot {
         Logger.recordOutput("VisualizeShot/turretAngleDegrees", Math.toDegrees(turretAngleRadians));
         Logger.recordOutput("VisualizeShot/totalYawDegrees", Math.toDegrees(newRotation.getZ()));
         Logger.recordOutput("VisualizeShot/exitVelocityMPS", exitVelocity);
-        Logger.recordOutput("VisualizeShot/flywheelRPS", Shooter.getInstance().getFlywheelVelocityRotationsPerSec());
+        Logger.recordOutput("VisualizeShot/flywheelRPS", flywheelRPS);
+        Logger.recordOutput("VisualizeShot/backspinRPM", backspinRPM);
         Logger.recordOutput("VisualizeShot/robotVx", fieldRelativeSpeeds.vxMetersPerSecond);
         Logger.recordOutput("VisualizeShot/robotVy", fieldRelativeSpeeds.vyMetersPerSecond);
         Logger.recordOutput("VisualizeShot/omegaRadPerSec", omega);
@@ -78,11 +81,13 @@ public class VisualizeShot {
         Logger.recordOutput("VisualizeShot/shooterVxField", shooterVxField);
         Logger.recordOutput("VisualizeShot/shooterVyField", shooterVyField);
 
-        CommandScheduler.getInstance().schedule(new ProjectileVisualizer(
+        ProjectileVisualizer.addProjectile(
             fieldRelativeSpeeds.vxMetersPerSecond,
             fieldRelativeSpeeds.vyMetersPerSecond,
             exitVelocity,
-            shooterPose
-        ));
+            shooterPose,
+            FieldConstants.Hub.hubCenter.getZ(),
+            backspinRPM
+        );
     }
 }

@@ -1,20 +1,77 @@
 {
   "lerpTable": [
-    { "distanceMeters": 0.48, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 12.0 },
-    { "distanceMeters": 0.71, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 15.0 },
-    { "distanceMeters": 1.08, "hoodAngleRotations": 0.1111111111, "flywheelVelocityRPS": 21.0 },
-    { "distanceMeters": 1.32, "hoodAngleRotations": 0.1111111111, "flywheelVelocityRPS": 23.0 },
-    { "distanceMeters": 2.132, "hoodAngleRotations": 0.1111111111, "flywheelVelocityRPS": 30.0 }
+    {
+      "distanceMeters": 0.889,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 85.0
+    },
+    {
+      "distanceMeters": 1.2192,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 73.0
+    },
+    {
+      "distanceMeters": 1.524,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 30.5
+    },
+    {
+      "distanceMeters": 1.8288,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 26.5
+    },
+    {
+      "distanceMeters": 2.4384,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 25.5
+    },
+    {
+      "distanceMeters": 3.048,
+      "hoodAngleRotations": 0.1486111111,
+      "flywheelVelocityRPS": 26.5
+    },
+    {
+      "distanceMeters": 3.6576,
+      "hoodAngleRotations": 0.1444444445,
+      "flywheelVelocityRPS": 28.0
+    },
+    {
+      "distanceMeters": 4.572,
+      "hoodAngleRotations": 0.1388888889,
+      "flywheelVelocityRPS": 30.5
+    },
+    {
+      "distanceMeters": 5.4864,
+      "hoodAngleRotations": 0.1388888889,
+      "flywheelVelocityRPS": 32.5
+    },
+    {
+      "distanceMeters": 6.4008,
+      "hoodAngleRotations": 0.1458333334,
+      "flywheelVelocityRPS": 35.0
+    },
+    {
+      "distanceMeters": 7.62,
+      "hoodAngleRotations": 0.1125,
+      "flywheelVelocityRPS": 38.5
+    },
+    {
+      "distanceMeters": 9.144,
+      "hoodAngleRotations": 0.1277777778,
+      "flywheelVelocityRPS": 41.0
+    },
+    {
+      "distanceMeters": 10.668,
+      "hoodAngleRotations": 0.1305555556,
+      "flywheelVelocityRPS": 44.5
+    }
   ],
-  "minShotDistFromShooterMeters": 0.48,
-  "maxShotDistFromShooterMeters": 2.132,
+  "minShotDistFromShooterMeters": 0.889,
+  "maxShotDistFromShooterMeters": 10.668,
   "latencyCompensationSeconds": 0.3,
   "canBusName": "drivetrain",
   "hoodCanId": 19,
   "isHoodInverted": true,
-  "hoodSupplyCurrentLimit": 80.0,
-  "hoodSupplyCurrentLimitLowerTime": 1.0,
-  "hoodSupplyCurrentLimitLowerLimit": 80.0,
   "hoodStatorCurrentLimit": 80.0,
   "hoodPeakForwardTorqueCurrent": 80.0,
   "hoodPeakReverseTorqueCurrent": -80.0,
@@ -30,9 +87,6 @@
   "hoodMaxAngleRotations": 0.15,
   "turretCanId": 33,
   "isTurretInverted": true,
-  "turretSupplyCurrentLimit": 90.0,
-  "turretSupplyCurrentLimitLowerTime": 1.0,
-  "turretSupplyCurrentLimitLowerLimit": 90.0,
   "turretStatorCurrentLimit": 90.0,
   "turretPeakForwardTorqueCurrent": 90.0,
   "turretPeakReverseTorqueCurrent": -90.0,
@@ -52,9 +106,6 @@
   "flywheelFollowerCanId": 17,
   "isFlywheelInverted": false,
   "isFlywheelFollowerOppositeDirection": false,
-  "flywheelSupplyCurrentLimit": 15.0,
-  "flywheelSupplyCurrentLimitLowerTime": 1.0,
-  "flywheelSupplyCurrentLimitLowerLimit": 15.0,
   "flywheelStatorCurrentLimit": 15.0,
   "flywheelPeakForwardTorqueCurrent": 15.0,
   "flywheelPeakReverseTorqueCurrent": -15.0,
@@ -64,8 +115,10 @@
   "flywheelKP": 0.5,
   "flywheelKI": 0.0,
   "flywheelKD": 0.0,
-  "flywheelMotorToOutputShaftRatio": 1.5,
+  "flywheelMotorToOutputShaftRatio": 1.0,
   "flywheelRadiusMeters": 0.0508,
+  "backRollerGearRatio": 1.3333333333,
+  "backRollerRadiusMeters": 0.0254,
   "shooterPoseX": -0.19,
   "shooterPoseY": 0.0,
   "shooterPoseZ": 0.46,

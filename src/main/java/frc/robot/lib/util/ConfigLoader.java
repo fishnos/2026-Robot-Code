@@ -25,6 +25,16 @@ public final class ConfigLoader {
         return load(subsystemName, getModeName(), configClass);
     }
 
+    public static String getModeFolder(boolean simOnlyFlag) {
+        if (Constants.shouldUseSimulation(simOnlyFlag)) {
+            return Constants.Mode.SIM.name();
+        }
+        if (Constants.currentMode == Constants.Mode.REPLAY) {
+            return Constants.Mode.COMP.name();
+        }
+        return Constants.currentMode.name();
+    }
+
     public static <T> T load(String subsystemName, String modeName, Class<T> configClass) {
         String normalizedMode = modeName.toLowerCase(Locale.ROOT);
         String cacheKey = subsystemName + ":" + normalizedMode;

@@ -12,8 +12,9 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N2;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.configs.ShooterConfig;
+import frc.robot.constants.Constants;
+import frc.robot.constants.FieldConstants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
 
@@ -27,27 +28,47 @@ public class Shooter extends SubsystemBase {
         return instance;
     }
 
-    // FSM State Enums
-    public enum ShooterCurrentState {
-        DISABLED,
-        HOME,
-        TRACKING,
-        PREPARING_FOR_SHOT,
-        READY_FOR_SHOT,
-        SHOOTING
+    public enum HoodSetpoint {
+        HOME(Rotation2d.fromDegrees(45.0)),
+        DYNAMIC(null);
+
+        private final Rotation2d angle;
+        HoodSetpoint(Rotation2d angle) {
+            this.angle = angle;
+        }
+
+        public Rotation2d getAngle() {
+            return angle;
+        }
     }
 
-    public enum ShooterDesiredState {
-        DISABLED,
-        HOME,
-        TRACKING,
-        READY_FOR_SHOT,
-        SHOOTING
+    public enum TurretSetpoint {
+        HOME(Rotation2d.fromDegrees(180.0)),
+        DYNAMIC(null);
+
+        private final Rotation2d angle;
+        TurretSetpoint(Rotation2d angle) {
+            this.angle = angle;
+        }
+
+        public Rotation2d getAngle() {
+            return angle;
+        }
     }
 
-    // FSM State Variables
-    private ShooterCurrentState currentState = ShooterCurrentState.DISABLED;
-    private ShooterDesiredState desiredState = ShooterDesiredState.DISABLED;
+    public enum FlywheelSetpoint {
+        OFF(0.0),
+        DYNAMIC(Double.NaN);
+
+        private final double rps;
+        FlywheelSetpoint(double rps) {
+            this.rps = rps;
+        }
+
+        public double getRps() {
+            return rps;
+        }
+    }
 
     // Setpoint Suppliers (set by Superstructure)
     private Supplier<Rotation2d> hoodAngleSupplier = () -> Rotation2d.fromDegrees(45.0);
@@ -68,8 +89,13 @@ public class Shooter extends SubsystemBase {
     private double flywheelSetpointRPS = 0.0;
 
     private Shooter() {
-        config = ConfigLoader.load("shooter", ShooterConfig.class);
-        shooterIO = RobotBase.isSimulation() ? new ShooterIOSim(config) : new ShooterIOTalonFX(config);
+        boolean useSimulation = Constants.shouldUseSimulation(Constants.SimOnlySubsystems.SHOOTER);
+        config = ConfigLoader.load(
+            "shooter",
+            ConfigLoader.getModeFolder(Constants.SimOnlySubsystems.SHOOTER),
+            ShooterConfig.class
+        );
+        shooterIO = useSimulation ? new ShooterIOSim(config) : new ShooterIOTalonFX(config);
 
         hoodControlLoopConfigurator = new DashboardMotorControlLoopConfigurator("Shooter/hoodControlLoop", 
             new DashboardMotorControlLoopConfigurator.MotorControlLoopConfig(
@@ -119,127 +145,6 @@ public class Shooter extends SubsystemBase {
             shooterIO.configureFlywheelControlLoop(flywheelControlLoopConfigurator.getConfig());
         }
 
-        // FSM processing
-        handleStateTransitions();
-        handleCurrentState();
-    }
-
-    /**
-     * Determines the next measured state based on the desired state.
-     * Handles transitions between states with proper validation.
-     */
-    private void handleStateTransitions() {
-        switch (desiredState) {
-            case DISABLED:
-                currentState = ShooterCurrentState.DISABLED;
-                break;
-
-            case HOME:
-                currentState = ShooterCurrentState.HOME;
-                break;
-
-            case TRACKING:
-                currentState = ShooterCurrentState.TRACKING;
-                break;
-
-            case READY_FOR_SHOT:
-                // READY_FOR_SHOT requires mechanisms to be at setpoints
-                // Otherwise we're in PREPARING_FOR_SHOT
-                if (isReadyForShot()) {
-                    currentState = ShooterCurrentState.READY_FOR_SHOT;
-                } else {
-                    currentState = ShooterCurrentState.PREPARING_FOR_SHOT;
-                }
-                break;
-
-            case SHOOTING:
-                // SHOOTING only allowed when we're in READY_FOR_SHOT
-                if (currentState == ShooterCurrentState.READY_FOR_SHOT) {
-                    currentState = ShooterCurrentState.SHOOTING;
-                } else if (currentState != ShooterCurrentState.SHOOTING) {
-                    currentState = ShooterCurrentState.PREPARING_FOR_SHOT;
-                }
-                // Otherwise we're in SHOOTING, and allow superstructure to handle the transition to READY_FOR_SHOT
-                break;
-        }
-    }
-
-    /**
-     * Executes behavior for the current state - applies setpoints from suppliers.
-     */
-    private void handleCurrentState() {
-        switch (currentState) {
-            case DISABLED:
-                handleDISABLEDState();
-                break;
-            case HOME:
-                handleHomeState();
-                break;
-            case TRACKING:
-                handleTrackingState();
-                break;
-            case PREPARING_FOR_SHOT:
-                handlePreparingForShotState();
-                break;
-            case READY_FOR_SHOT:
-                handleReadyForShotState();
-                break;
-            case SHOOTING:
-                handleShootingState();
-                break;
-        }
-    }
-
-    private void handleDISABLEDState() {
-        // All motors DISABLED/coast
-        setShotVelocity(0);
-        // Keep current hood/turret position or go to default
-        setHoodAngle(Rotation2d.fromDegrees(45.0));
-        setTurretAngle(new Rotation2d(Math.PI));
-    }
-
-    private void handleHomeState() {
-        // Idle position, no spin
-        setShotVelocity(0);
-        setHoodAngle(Rotation2d.fromDegrees(45.0));
-        setTurretAngle(new Rotation2d(Math.PI));
-    }
-
-    private void handleTrackingState() {
-        // Track target with hood/turret but don't spin up flywheel
-        setShotVelocity(0);
-        setHoodAngle(hoodAngleSupplier.get());
-        setTurretAngle(turretAngleSupplier.get());
-    }
-
-    private void handlePreparingForShotState() {
-        // Spin up flywheel and track target
-        setShotVelocity(flywheelRPSSupplier.get());
-        setHoodAngle(hoodAngleSupplier.get());
-        setTurretAngle(turretAngleSupplier.get());
-    }
-
-    private void handleReadyForShotState() {
-        // Maintain ready state
-        setShotVelocity(flywheelRPSSupplier.get());
-        setHoodAngle(hoodAngleSupplier.get());
-        setTurretAngle(turretAngleSupplier.get());
-    }
-
-    private void handleShootingState() {
-        // Fire the shot - shooter maintains flywheel/hood/turret, kicker handles feeding
-        setShotVelocity(flywheelRPSSupplier.get());
-        setHoodAngle(hoodAngleSupplier.get());
-        setTurretAngle(turretAngleSupplier.get());
-    }
-
-    /**
-     * Checks if all mechanisms are at their setpoints and ready to shoot.
-     */
-    private boolean isReadyForShot() {
-        return isFlywheelAtSetpoint() && 
-               isHoodAtSetpoint() && 
-               isTurretAtSetpoint();
     }
 
     // Supplier setters (called by Superstructure)
@@ -255,19 +160,19 @@ public class Shooter extends SubsystemBase {
         this.flywheelRPSSupplier = supplier;
     }
 
-    // State getters/setters
-    @AutoLogOutput(key = "Shooter/currentState")
-    public ShooterCurrentState getCurrentState() {
-        return currentState;
+    public void setHoodSetpoint(HoodSetpoint setpoint) {
+        Rotation2d target = setpoint == HoodSetpoint.DYNAMIC ? hoodAngleSupplier.get() : setpoint.getAngle();
+        setHoodAngle(target);
     }
 
-    @AutoLogOutput(key = "Shooter/desiredState")
-    public ShooterDesiredState getDesiredState() {
-        return desiredState;
+    public void setTurretSetpoint(TurretSetpoint setpoint) {
+        Rotation2d target = setpoint == TurretSetpoint.DYNAMIC ? turretAngleSupplier.get() : setpoint.getAngle();
+        setTurretAngle(target);
     }
 
-    public void setDesiredState(ShooterDesiredState desiredState) {
-        this.desiredState = desiredState;
+    public void setFlywheelSetpoint(FlywheelSetpoint setpoint) {
+        double target = setpoint == FlywheelSetpoint.DYNAMIC ? flywheelRPSSupplier.get() : setpoint.getRps();
+        setShotVelocity(target);
     }
 
     // Direct setters for mechanism control (now private, used internally by state handlers)
@@ -328,9 +233,27 @@ public class Shooter extends SubsystemBase {
         return shooterInputs.flywheelVelocityRotationsPerSec;
     }
 
+    /**
+     * Calculate ball backspin from differential roller surface speeds.
+     * Flywheel (bottom) moving faster than back roller (top) creates backspin.
+     */
+    public double calculateBackSpinRPM(double flywheelVelocityRotationsPerSec) {
+        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * config.flywheelRadiusMeters;
+        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * config.backRollerGearRatio
+            * 2 * Math.PI * config.backRollerRadiusMeters;
+
+        double deltaV = flywheelSurfaceVel - backRollerSurfaceVel;
+        double ballRadiusMeters = FieldConstants.fuelDiameter / 2.0;
+        double spinRadPerSec = deltaV / ballRadiusMeters;
+
+        return spinRadPerSec * 60.0 / (2 * Math.PI);
+    }
+
     public double calculateShotExitVelocityMetersPerSec(double flywheelVelocityRotationsPerSec) {
-        return flywheelVelocityRotationsPerSec * 2 * Math.PI * config.flywheelRadiusMeters / 2; 
-        // divide by 2 because the flywheel is a pulling the ball along the hood radius
+        double flywheelSurfaceVel = flywheelVelocityRotationsPerSec * 2 * Math.PI * config.flywheelRadiusMeters;
+        double backRollerSurfaceVel = flywheelVelocityRotationsPerSec * config.backRollerGearRatio
+            * 2 * Math.PI * config.backRollerRadiusMeters;
+        return (flywheelSurfaceVel + backRollerSurfaceVel) / 2.0;
     }
 
     public double getShotExitVelocityMetersPerSec() {

@@ -29,10 +29,11 @@ pluginManagement {
 Properties props = System.getProperties();
 props.setProperty("org.gradle.internal.native.headers.unresolved.dependencies.ignore", "true");
 
-// if (file('/Users/edan/FRC/BLine-Lib').exists()) {
-//     includeBuild('/Users/edan/FRC/BLine-Lib') {
-//         dependencySubstitution {
-//             substitute module('com.github.edanliahovetsky:BLine-Lib') using project(':')
-//         }
-//     }
-// }
+// Include local BLine-Lib if it exists (for development)
+if (file('/Users/edan/FRC/BLine-Lib').exists()) {
+    includeBuild('/Users/edan/FRC/BLine-Lib') {
+        dependencySubstitution {
+            substitute module('com.github.edanliahovetsky:BLine-Lib') using project(':')
+        }
+    }
+}

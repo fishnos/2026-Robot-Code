@@ -1,24 +1,77 @@
 {
   "lerpTable": [
-    { "distanceMeters": 0.5, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 13.88 },
-    { "distanceMeters": 1.0, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 19.62 },
-    { "distanceMeters": 1.5, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 24.03 },
-    { "distanceMeters": 2.0, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 27.75 },
-    { "distanceMeters": 2.5, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 31.03 },
-    { "distanceMeters": 3.0, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 33.99 },
-    { "distanceMeters": 3.5, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 36.71 },
-    { "distanceMeters": 4.0, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 39.25 },
-    { "distanceMeters": 4.5, "hoodAngleRotations": 0.125, "flywheelVelocityRPS": 41.63 }
+    {
+      "distanceMeters": 0.889,
+      "hoodAngleRotations": 0.2194444445,
+      "flywheelVelocityRPS": 22.5
+    },
+    {
+      "distanceMeters": 1.2192,
+      "hoodAngleRotations": 0.2097222222,
+      "flywheelVelocityRPS": 23.0
+    },
+    {
+      "distanceMeters": 1.524,
+      "hoodAngleRotations": 0.2013888889,
+      "flywheelVelocityRPS": 23.5
+    },
+    {
+      "distanceMeters": 1.8288,
+      "hoodAngleRotations": 0.1944444445,
+      "flywheelVelocityRPS": 24.0
+    },
+    {
+      "distanceMeters": 2.4384,
+      "hoodAngleRotations": 0.1833333334,
+      "flywheelVelocityRPS": 25.5
+    },
+    {
+      "distanceMeters": 3.048,
+      "hoodAngleRotations": 0.175,
+      "flywheelVelocityRPS": 27.0
+    },
+    {
+      "distanceMeters": 3.6576,
+      "hoodAngleRotations": 0.1680555556,
+      "flywheelVelocityRPS": 28.5
+    },
+    {
+      "distanceMeters": 4.572,
+      "hoodAngleRotations": 0.1541666667,
+      "flywheelVelocityRPS": 30.5
+    },
+    {
+      "distanceMeters": 5.4864,
+      "hoodAngleRotations": 0.1541666667,
+      "flywheelVelocityRPS": 33.0
+    },
+    {
+      "distanceMeters": 6.4008,
+      "hoodAngleRotations": 0.1458333334,
+      "flywheelVelocityRPS": 35.0
+    },
+    {
+      "distanceMeters": 7.62,
+      "hoodAngleRotations": 0.1444444445,
+      "flywheelVelocityRPS": 38.0
+    },
+    {
+      "distanceMeters": 9.144,
+      "hoodAngleRotations": 0.1277777778,
+      "flywheelVelocityRPS": 41.0
+    },
+    {
+      "distanceMeters": 10.668,
+      "hoodAngleRotations": 0.1305555556,
+      "flywheelVelocityRPS": 44.5
+    }
   ],
-  "minShotDistFromShooterMeters": 0.5,
-  "maxShotDistFromShooterMeters": 4.5,
+  "minShotDistFromShooterMeters": 0.889,
+  "maxShotDistFromShooterMeters": 10.668,
   "latencyCompensationSeconds": 0.0,
   "canBusName": "rio",
   "hoodCanId": 20,
   "isHoodInverted": false,
-  "hoodSupplyCurrentLimit": 30.0,
-  "hoodSupplyCurrentLimitLowerTime": 1.0,
-  "hoodSupplyCurrentLimitLowerLimit": 25.0,
   "hoodStatorCurrentLimit": 40.0,
   "hoodPeakForwardTorqueCurrent": 40.0,
   "hoodPeakReverseTorqueCurrent": -40.0,
@@ -31,12 +84,9 @@
   "hoodMotorToOutputShaftRatio": 100.0,
   "hoodStartingAngleRotations": 0.15,
   "hoodMinAngleRotations": -0.2222222222,
-  "hoodMaxAngleRotations": 0.15,
+  "hoodMaxAngleRotations": 0.22,
   "turretCanId": 19,
   "isTurretInverted": false,
-  "turretSupplyCurrentLimit": 30.0,
-  "turretSupplyCurrentLimitLowerTime": 1.0,
-  "turretSupplyCurrentLimitLowerLimit": 25.0,
   "turretStatorCurrentLimit": 40.0,
   "turretPeakForwardTorqueCurrent": 40.0,
   "turretPeakReverseTorqueCurrent": -40.0,
@@ -56,9 +106,6 @@
   "flywheelFollowerCanId": 22,
   "isFlywheelInverted": false,
   "isFlywheelFollowerOppositeDirection": false,
-  "flywheelSupplyCurrentLimit": 60.0,
-  "flywheelSupplyCurrentLimitLowerTime": 1.0,
-  "flywheelSupplyCurrentLimitLowerLimit": 50.0,
   "flywheelStatorCurrentLimit": 80.0,
   "flywheelPeakForwardTorqueCurrent": 80.0,
   "flywheelPeakReverseTorqueCurrent": -80.0,
@@ -70,7 +117,9 @@
   "flywheelKD": 0.0,
   "flywheelMotorToOutputShaftRatio": 1.0,
   "flywheelRadiusMeters": 0.0508,
-  "shooterPoseX": -0.11,
+  "backRollerGearRatio": 1.3333333333,
+  "backRollerRadiusMeters": 0.0254,
+  "shooterPoseX": 0.0,
   "shooterPoseY": 0.0,
   "shooterPoseZ": 0.46,
   "shooterPoseRollDeg": 0.0,

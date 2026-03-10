@@ -9,9 +9,9 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N2;
 import java.util.function.DoubleUnaryOperator;
 
-public class ShotCalculator {
+import frc.robot.lib.util.ballistics.BallisticsPhysics;
 
-    private static final double GRAVITY = 9.81; // m/s^2
+public class ShotCalculator {
 
     public record ShotData(
         Rotation2d targetFieldYaw,
@@ -30,29 +30,11 @@ public class ShotCalculator {
         InterpolatingMatrixTreeMap<Double, N2, N1> lerpTable,
         double latencyCompensationSeconds,
         DoubleUnaryOperator rpsToExitVelocity,
+        DoubleUnaryOperator rpsToSpinRateRadPerSec,
         Translation2d shooterOffsetFromRobotCenter,
         Rotation2d robotHeading
     ) {
-        // Calculate shooter's tangential velocity due to robot rotation (omega)
-        // In robot frame: v_tangential = omega cross r = (-omega * dy, omega * dx)
-        double omega = fieldRelativeSpeeds.omegaRadiansPerSecond;
-        double dx = shooterOffsetFromRobotCenter.getX();
-        double dy = shooterOffsetFromRobotCenter.getY();
-        
-        // Tangential velocity in robot frame
-        double tangentialVxRobot = -omega * dy;
-        double tangentialVyRobot = omega * dx;
-        
-        // Rotate tangential velocity to field frame
-        double cos = robotHeading.getCos();
-        double sin = robotHeading.getSin();
-        double tangentialVxField = tangentialVxRobot * cos - tangentialVyRobot * sin;
-        double tangentialVyField = tangentialVxRobot * sin + tangentialVyRobot * cos;
-        
-        // Total shooter velocity in field frame (linear + tangential from rotation)
-        // double shooterVxField = fieldRelativeSpeeds.vxMetersPerSecond + tangentialVxField;
-        // double shooterVyField = fieldRelativeSpeeds.vyMetersPerSecond + tangentialVyField;
-        
+        // Total shooter velocity in field frame (linear only)
         double shooterVxField = fieldRelativeSpeeds.vxMetersPerSecond;
         double shooterVyField = fieldRelativeSpeeds.vyMetersPerSecond;
         
@@ -75,25 +57,18 @@ public class ShotCalculator {
             double exitVelocity = rpsToExitVelocity.applyAsDouble(flywheelRPS);
             double launchAngle = hoodAngleRotations * 2 * Math.PI; // Convert to radians
             
-            // Calculate velocity components (relative to robot)
-            double exitVelocityHorizontal = exitVelocity * Math.cos(launchAngle);
-            double exitVelocityVertical = exitVelocity * Math.sin(launchAngle);
-            
-            // Calculate flight time using projectile motion physics
-            // Solve: targetHeight = shooterHeight + vz0*t - 0.5*g*t^2
-            // Rearranged: 0.5*g*t^2 - vz0*t + (shooterHeight - targetHeight) = 0
-            // Using quadratic formula: t = (vz0 + sqrt(vz0^2 - 2*g*(shooterHeight - targetHeight))) / g
             double shooterHeight = shooterPosition.getZ();
             double deltaHeight = targetHeight - shooterHeight;
-            
-            // Flight time from vertical motion (projectile hits target height)
-            double discriminant = exitVelocityVertical * exitVelocityVertical - 2 * GRAVITY * deltaHeight;
-            if (discriminant < 0) {
-                // Can't reach target (would require negative time), use simplified calculation
-                shotFlightTime = shooterDistanceToTarget / exitVelocityHorizontal;
-            } else {
-                shotFlightTime = (exitVelocityVertical + Math.sqrt(discriminant)) / GRAVITY;
-            }
+
+            double spinRateRadPerSec = rpsToSpinRateRadPerSec.applyAsDouble(flywheelRPS);
+            shotFlightTime = BallisticsPhysics.estimateFlightTime(
+                shooterDistanceToTarget,
+                launchAngle,
+                exitVelocity,
+                shooterHeight,
+                shooterHeight + deltaHeight,
+                spinRateRadPerSec
+            );
             
             // In robot frame, target appears to move. Predict where it will appear to be
             // Use total shooter velocity (includes tangential component from omega)

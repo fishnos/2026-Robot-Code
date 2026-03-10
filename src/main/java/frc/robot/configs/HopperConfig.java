@@ -6,9 +6,6 @@ public class HopperConfig {
     public int hopperCanId;
     public boolean isHopperInverted;
 
-    public double hopperSupplyCurrentLimit;
-    public double hopperSupplyCurrentLimitLowerTime;
-    public double hopperSupplyCurrentLimitLowerLimit;
     public double hopperStatorCurrentLimit;
     public double hopperPeakForwardTorqueCurrent;
     public double hopperPeakReverseTorqueCurrent;

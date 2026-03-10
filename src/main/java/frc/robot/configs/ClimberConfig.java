@@ -6,9 +6,6 @@ public class ClimberConfig {
     public int climberCanId;
     public boolean isClimberInverted;
 
-    public double climberSupplyCurrentLimit;
-    public double climberSupplyCurrentLimitLowerTime;
-    public double climberSupplyCurrentLimitLowerLimit;
     public double climberStatorCurrentLimit;
     public double climberPeakForwardTorqueCurrent;
     public double climberPeakReverseTorqueCurrent;
