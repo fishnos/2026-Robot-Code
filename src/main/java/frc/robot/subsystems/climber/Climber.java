@@ -11,7 +11,6 @@ import frc.robot.configs.ClimberConfig;
 import frc.robot.constants.Constants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
-import frc.robot.lib.util.LoopCycleProfiler;
 
 public class Climber extends SubsystemBase {
     private static Climber instance = null;
@@ -120,35 +119,20 @@ public class Climber extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long updateInputsStartNanos = LoopCycleProfiler.markStart();
         climberIO.updateInputs(climberInputs);
-        LoopCycleProfiler.endSection("Climber/UpdateInputs", updateInputsStartNanos);
-
-        long processInputsStartNanos = LoopCycleProfiler.markStart();
         Logger.processInputs("Climber", climberInputs);
-        LoopCycleProfiler.endSection("Climber/ProcessInputs", processInputsStartNanos);
 
         climberDisconnectedAlert.set(enableConnectionAlerts && !climberInputs.climberMotorConnected);
 
-        long stateTransitionStartNanos = LoopCycleProfiler.markStart();
         handleStateTransitions();
-        LoopCycleProfiler.endSection("Climber/StateTransitions", stateTransitionStartNanos);
 
-        long currentStateStartNanos = LoopCycleProfiler.markStart();
         handleCurrentState();
-        LoopCycleProfiler.endSection("Climber/CurrentStateHandling", currentStateStartNanos);
 
-        long configUpdatesStartNanos = LoopCycleProfiler.markStart();
         pendingClimberControlLoopConfigApply |= climberControlLoopConfigurator.hasChanged();
         if (DriverStation.isDisabled() && pendingClimberControlLoopConfigApply) {
             climberIO.configureControlLoop(climberControlLoopConfigurator.getConfig());
             pendingClimberControlLoopConfigApply = false;
         }
-        LoopCycleProfiler.endSection("Climber/ControlLoopConfigUpdates", configUpdatesStartNanos);
-
-        LoopCycleProfiler.endSection("Climber/PeriodicTotal", periodicStartNanos);
     }
 
     private void handleStateTransitions() {

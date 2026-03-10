@@ -23,7 +23,6 @@ import frc.robot.constants.Constants;
 import frc.robot.constants.FieldConstants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
-import frc.robot.lib.util.LoopCycleProfiler;
 
 public class Shooter extends SubsystemBase {
     private static Shooter instance = null;
@@ -166,15 +165,8 @@ public class Shooter extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long updateInputsStartNanos = LoopCycleProfiler.markStart();
         shooterIO.updateInputs(shooterInputs);
-        LoopCycleProfiler.endSection("Shooter/UpdateInputs", updateInputsStartNanos);
-
-        long processInputsStartNanos = LoopCycleProfiler.markStart();
         Logger.processInputs("Shooter", shooterInputs);
-        LoopCycleProfiler.endSection("Shooter/ProcessInputs", processInputsStartNanos);
 
         hoodDisconnectedAlert.set(enableConnectionAlerts && !shooterInputs.hoodMotorConnected);
         turretDisconnectedAlert.set(enableConnectionAlerts && !shooterInputs.turretMotorConnected);
@@ -182,7 +174,6 @@ public class Shooter extends SubsystemBase {
         flywheelFollowerDisconnectedAlert.set(enableConnectionAlerts && !shooterInputs.flywheelFollowerMotorConnected);
 
         // Handle control loop configuration updates
-        long configUpdatesStartNanos = LoopCycleProfiler.markStart();
         pendingHoodControlLoopConfigApply |= hoodControlLoopConfigurator.hasChanged();
         pendingTurretControlLoopConfigApply |= turretControlLoopConfigurator.hasChanged();
         pendingFlywheelControlLoopConfigApply |= flywheelControlLoopConfigurator.hasChanged();
@@ -208,9 +199,6 @@ public class Shooter extends SubsystemBase {
             turretProfileSetpoint = new State(clampedMeasuredTurretRotations, 0.0);
             lastTurretGoalDeg = clampedMeasuredTurretRotations * 360.0;
         }
-        LoopCycleProfiler.endSection("Shooter/ControlLoopConfigUpdates", configUpdatesStartNanos);
-
-        LoopCycleProfiler.endSection("Shooter/PeriodicTotal", periodicStartNanos);
     }
 
     // Supplier setters (called by Superstructure)

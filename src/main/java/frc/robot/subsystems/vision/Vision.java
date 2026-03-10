@@ -16,7 +16,6 @@ import frc.robot.configs.VisionConfig.ObservationMode;
 import frc.robot.constants.Constants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.LimelightHelpers;
-import frc.robot.lib.util.LoopCycleProfiler;
 import frc.robot.subsystems.vision.VisionIO.PoseObservationType;
 
 import java.util.ArrayList;
@@ -147,9 +146,6 @@ public class Vision extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long imuModeStartNanos = LoopCycleProfiler.markStart();
         double currentTime = Timer.getTimestamp();
         boolean isDisabled = DriverStation.isDisabled();
         int imuMode = isDisabled ? config.disabledImuMode : config.enabledImuMode;
@@ -159,9 +155,7 @@ public class Vision extends SubsystemBase {
             writeImuMode(imuMode, currentTime);
             wroteImuModeThisCycle = true;
         }
-        LoopCycleProfiler.endSection("Vision/SetIMUMode", imuModeStartNanos);
 
-        long orientationPublishStartNanos = LoopCycleProfiler.markStart();
         boolean shouldFlushRobotOrientation = false;
         for (VisionIO ioImplementation : io) {
             shouldFlushRobotOrientation |= ioImplementation.publishRobotOrientation();
@@ -169,9 +163,7 @@ public class Vision extends SubsystemBase {
         if (shouldFlushRobotOrientation) {
             LimelightHelpers.Flush();
         }
-        LoopCycleProfiler.endSection("Vision/PublishRobotOrientation", orientationPublishStartNanos);
 
-        long inputUpdateStartNanos = LoopCycleProfiler.markStart();
         boolean sawReconnectThisCycle = false;
         for (int i = 0; i < io.length; i++) {
             io[i].updateInputs(inputs[i]);
@@ -184,14 +176,10 @@ public class Vision extends SubsystemBase {
         if (sawReconnectThisCycle && !wroteImuModeThisCycle) {
             writeImuMode(imuMode, currentTime);
         }
-        LoopCycleProfiler.endSection("Vision/UpdateAndProcessInputs", inputUpdateStartNanos);
 
         // Record current rotation rate
-        long rotationRateStartNanos = LoopCycleProfiler.markStart();
-
         // Store rotation rate in buffer
         rotationRateBuffer.addSample(currentTime, rotationRateDegreesPerSecondSupplier.getAsDouble());
-        LoopCycleProfiler.endSection("Vision/RotationRateBufferUpdate", rotationRateStartNanos);
 
         // Initialize logging values
         boolean shouldLogDetailedPoseArrays =
@@ -201,7 +189,6 @@ public class Vision extends SubsystemBase {
             lastDetailedPoseLogTimestampSeconds = currentTime;
         }
 
-        long cameraProcessingStartNanos = LoopCycleProfiler.markStart();
         int totalAcceptedCount = 0;
         int totalRejectedCount = 0;
         int totalObservationCount = 0;
@@ -212,7 +199,6 @@ public class Vision extends SubsystemBase {
 
         // Loop over cameras
         for (int cameraIndex = 0; cameraIndex < io.length; cameraIndex++) {
-            long perCameraStartNanos = LoopCycleProfiler.markStart();
             String cameraTimingPrefix = "Vision/Camera" + Integer.toString(cameraIndex);
             ObservationMode configuredObservationMode = cameraObservationModes[cameraIndex];
             ObservationMode effectiveObservationMode =
@@ -365,12 +351,8 @@ public class Vision extends SubsystemBase {
                     cameraTimingPrefix + "/PoseTypesRejected",
                     poseTypesRejected.toArray(new String[poseTypesRejected.size()]));
             }
-
-            LoopCycleProfiler.endSection(cameraTimingPrefix + "/Total", perCameraStartNanos);
         }
-        LoopCycleProfiler.endSection("Vision/CameraProcessing", cameraProcessingStartNanos);
 
-        long summaryLogStartNanos = LoopCycleProfiler.markStart();
         Logger.recordOutput("Vision/Summary/PoseObservationCount", totalObservationCount);
         Logger.recordOutput("Vision/Summary/PoseAcceptedCount", totalAcceptedCount);
         Logger.recordOutput("Vision/Summary/PoseRejectedCount", totalRejectedCount);
@@ -378,9 +360,6 @@ public class Vision extends SubsystemBase {
         Logger.recordOutput("Vision/Summary/RawMegatag1ObservationCount", totalRawMegatag1Count);
         Logger.recordOutput("Vision/Summary/RawMegatag2ObservationCount", totalRawMegatag2Count);
         Logger.recordOutput("Vision/Summary/RawObservationCount", totalRawObservationCount);
-        LoopCycleProfiler.endSection("Vision/SummaryLogging", summaryLogStartNanos);
-
-        LoopCycleProfiler.endSection("Vision/PeriodicTotal", periodicStartNanos);
     }
 
     private void writeImuMode(int imuMode, double currentTime) {

@@ -22,7 +22,6 @@ import frc.robot.constants.ZoneConstants;
 import frc.robot.constants.ZoneConstants.RectangleZone;
 import frc.robot.lib.BLine.FlippingUtil;
 import frc.robot.lib.util.ConfigLoader;
-import frc.robot.lib.util.LoopCycleProfiler;
 import frc.robot.lib.util.ShotKinematicsUtil;
 import frc.robot.lib.util.ShotCalculator;
 import frc.robot.lib.util.ShotCalculator.ShotData;
@@ -225,9 +224,6 @@ public class Superstructure extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long shotComputationStartNanos = LoopCycleProfiler.markStart();
         latencyCompensationSeconds.setDefault(config.latencyCompensationSeconds);
 
         // Calculate raw shot data once per cycle, then apply close-shot guard for mechanism setpoints.
@@ -264,23 +260,13 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/usingCloseShotGuard", cachedShotData != mostRecentShotData);
         Logger.recordOutput("Superstructure/hasLastInRangeShotData", hasValidLastInRangeShotData);
         Logger.recordOutput("Superstructure/lastInRangeShotAgeSeconds", nowSeconds - lastInRangeShotTimestampSeconds);
-        LoopCycleProfiler.endSection("Superstructure/ShotComputation", shotComputationStartNanos);
 
-        long shotReadinessStartNanos = LoopCycleProfiler.markStart();
         cachedShotReadinessData = calculateShotReadinessData(cachedShotComputationContext);
         logShotReadinessData(cachedShotReadinessData);
-        
-        LoopCycleProfiler.endSection("Superstructure/ShotReadiness", shotReadinessStartNanos);
 
-        long stateTransitionsStartNanos = LoopCycleProfiler.markStart();
         handleStateTransitions();
-        LoopCycleProfiler.endSection("Superstructure/StateTransitions", stateTransitionsStartNanos);
 
-        long currentStateStartNanos = LoopCycleProfiler.markStart();
         handleCurrentState();
-        LoopCycleProfiler.endSection("Superstructure/CurrentStateHandling", currentStateStartNanos);
-
-        LoopCycleProfiler.endSection("Superstructure/PeriodicTotal", periodicStartNanos);
     }
 
     /**
