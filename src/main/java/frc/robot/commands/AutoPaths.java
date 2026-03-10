@@ -152,7 +152,8 @@ public final class AutoPaths {
         Path path = new Path(pathElements, constraints);
         // SwerveDrive's shared FollowPath builder applies a global mirror to every path.
         // Pre-mirror on-the-fly climb paths so runtime execution stays in the same field frame
-        // used by RobotState, zones, and the climb target constants.
+        // used by RobotState, zones, and the climb target constants. 
+        // TODO: at some point, this may not be the case anymore
         path.mirror();
         return path;
     }
