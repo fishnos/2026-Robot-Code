@@ -74,7 +74,7 @@ public class ShooterIOTalonFX implements ShooterIO {
     //     new DynamicMotionMagicVoltage(0, 0, 0).withSlot(0).withEnableFOC(true);
     private final PositionVoltage turretMotorRequest = new PositionVoltage(0).withSlot(0).withEnableFOC(true);
 
-    private final VelocityVoltage flywheelMotorRequest = new VelocityVoltage(0).withSlot(0);
+    private final VelocityTorqueCurrentFOC flywheelMotorRequest = new VelocityTorqueCurrentFOC(0).withSlot(0);
 
     private final ShooterConfig config;
     private final TalonFXConfiguration hoodConfig;

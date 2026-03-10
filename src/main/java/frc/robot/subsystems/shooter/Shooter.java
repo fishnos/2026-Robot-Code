@@ -64,7 +64,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public enum FlywheelSetpoint {
-        OFF(0.0), // prevent bang bang jitter
+        OFF(-1.0), // prevent bang bang jitter
         DYNAMIC(Double.NaN);
 
         private final double rps;
