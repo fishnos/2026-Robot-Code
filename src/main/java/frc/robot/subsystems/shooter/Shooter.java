@@ -40,6 +40,7 @@ public class Shooter extends SubsystemBase {
         DYNAMIC(null);
 
         private final Rotation2d angle;
+        
         HoodSetpoint(Rotation2d angle) {
             this.angle = angle;
         }
@@ -64,7 +65,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public enum FlywheelSetpoint {
-        OFF(-1.0), // prevent bang bang jitter
+        OFF(0.0), // prevent bang bang jitter
         DYNAMIC(Double.NaN);
 
         private final double rps;
@@ -426,7 +427,11 @@ public class Shooter extends SubsystemBase {
 
             if (isCurrentBranchOutsideLimits) {
                 double clampedCurrentBranchDistanceDeg = Math.abs(currentBranchClampedDeg - referenceDeg);
-                if (clampedCurrentBranchDistanceDeg < bestDistanceDeg) {
+                double clampedCurrentBranchAimErrorDeg = Math.abs(
+                    MathUtil.inputModulus(requestedDeg - currentBranchClampedDeg, -180.0, 180.0)
+                );
+                // Keep the turret pinned at the soft limit only when that bound still roughly tracks the request.
+                if (clampedCurrentBranchDistanceDeg < bestDistanceDeg && clampedCurrentBranchAimErrorDeg <= 90.0) {
                     bestAngleDeg = currentBranchClampedDeg;
                 }
             }
@@ -435,9 +440,11 @@ public class Shooter extends SubsystemBase {
             usedUnwindFallback = false;
         } else {
             unwindTargetDeg = selectFallbackTurretBoundDegrees(
-                currentBranchTargetDeg,
+                requestedDeg,
+                referenceDeg,
                 minDeg,
-                maxDeg
+                maxDeg,
+                currentBranchClampedDeg
             );
             targetAngleDeg = unwindTargetDeg;
             usedUnwindFallback = true;
@@ -447,11 +454,31 @@ public class Shooter extends SubsystemBase {
     }
 
     static double selectFallbackTurretBoundDegrees(
-        double currentBranchTargetDeg,
+        double requestedDeg,
+        double referenceDeg,
         double minDeg,
-        double maxDeg
+        double maxDeg,
+        double currentBranchClampedDeg
     ) {
-        return MathUtil.clamp(currentBranchTargetDeg, minDeg, maxDeg);
+        double minAimErrorDeg = Math.abs(MathUtil.inputModulus(requestedDeg - minDeg, -180.0, 180.0));
+        double maxAimErrorDeg = Math.abs(MathUtil.inputModulus(requestedDeg - maxDeg, -180.0, 180.0));
+        if (minAimErrorDeg < maxAimErrorDeg) {
+            return minDeg;
+        }
+        if (maxAimErrorDeg < minAimErrorDeg) {
+            return maxDeg;
+        }
+
+        double minCurrentDistanceDeg = Math.abs(minDeg - referenceDeg);
+        double maxCurrentDistanceDeg = Math.abs(maxDeg - referenceDeg);
+        if (minCurrentDistanceDeg < maxCurrentDistanceDeg) {
+            return minDeg;
+        }
+        if (maxCurrentDistanceDeg < minCurrentDistanceDeg) {
+            return maxDeg;
+        }
+
+        return currentBranchClampedDeg;
     }
 
     static record TurretResolution(

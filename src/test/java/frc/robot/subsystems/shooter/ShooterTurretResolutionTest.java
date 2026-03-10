@@ -40,26 +40,11 @@ class ShooterTurretResolutionTest {
     }
 
     @Test
-    // If no wrapped angle is legal, fallback should clamp the requested branch nearest the current goal.
-    void resolveTurretTargetDegrees_usesUnwindFallbackTowardNearestBoundOnCurrentBranchWhenNoWrappedEquivalent() {
+    // If no wrapped angle is legal, fallback should choose the limit with lower aim error.
+    void resolveTurretTargetDegrees_usesUnwindFallbackTowardNearestAimBoundWhenNoWrappedEquivalent() {
         Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
-            -30.0,
+            330.0,
             100.0,
-            90.0,
-            270.0
-        );
-
-        assertTrue(resolution.usedUnwindFallback());
-        assertEquals(90.0, resolution.targetAngleDeg(), EPS);
-        assertEquals(90.0, resolution.unwindTargetDeg(), EPS);
-    }
-
-    @Test
-    // Regression: wrapped aim-error comparison could pick the opposite limit from the active branch.
-    void resolveTurretTargetDegrees_unwindFallbackDoesNotCrossToOppositeBound() {
-        Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
-            20.0,
-            250.0,
             90.0,
             270.0
         );
@@ -70,8 +55,8 @@ class ShooterTurretResolutionTest {
     }
 
     @Test
-    // When the requested branch is above the legal range, fallback should clamp to the upper bound.
-    void resolveTurretTargetDegrees_unwindFallbackClampsUpperBranchToUpperBound() {
+    // When both bounds have equal aim error, fallback should use the bound closest to the previous goal.
+    void resolveTurretTargetDegrees_unwindFallbackBreaksAimErrorTieUsingCurrentAngle() {
         Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
             0.0,
             250.0,
@@ -96,6 +81,20 @@ class ShooterTurretResolutionTest {
 
         assertFalse(resolution.usedUnwindFallback());
         assertEquals(-450.0, resolution.targetAngleDeg(), EPS);
+    }
+
+    @Test
+    // If clamping the current branch would leave the turret badly mis-aimed, choose the legal wrapped branch instead.
+    void resolveTurretTargetDegrees_avoidsPinningAtLimitWhenWrappedBranchCanStillTrackTarget() {
+        Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
+            20.0,
+            610.0,
+            -450.0,
+            630.0
+        );
+
+        assertFalse(resolution.usedUnwindFallback());
+        assertEquals(380.0, resolution.targetAngleDeg(), EPS);
     }
 
     @Test
@@ -134,7 +133,7 @@ class ShooterTurretResolutionTest {
         );
 
         assertTrue(goalState.usedUnwindFallback());
-        assertEquals(90.0, goalState.targetAngleDeg(), EPS);
+        assertEquals(270.0, goalState.targetAngleDeg(), EPS);
         assertEquals(0.0, goalState.targetVelocityRotPerSec(), EPS);
     }
 
