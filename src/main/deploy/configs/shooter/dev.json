@@ -155,7 +155,7 @@
   "shooterPosePitchDeg": 0.0,
   "shooterPoseYawDeg": 0.0,
   "hoodAngleToleranceDegrees": 2.0,
-  "flywheelVelocityToleranceRPS": 3.0,
+  "flywheelVelocityToleranceRPS": 8.0,
   "shootingLerpTable": [
     {
       "distanceMeters": 1.4,
