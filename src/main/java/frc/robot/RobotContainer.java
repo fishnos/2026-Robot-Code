@@ -59,7 +59,7 @@ public class RobotContainer {
     private final Hopper hopper = Hopper.getInstance();
     private final Intake intake = Intake.getInstance();
     private final Superstructure superstructure = Superstructure.getInstance();
-    private final Intake intake = Intake.getInstance();
+
     private final Climber climber = Climber.getInstance();
 
     LoggedNetworkNumber shooterFlywheelSet = new LoggedNetworkNumber("flywheelSet", 0);
@@ -206,17 +206,19 @@ public class RobotContainer {
 
         xboxDriver.getRightBumper().onTrue(
             new InstantCommand(() -> {
-                climber.setSetpoint(Climber.ClimberSetpoint.READY); 
+                // Use the correct Enum names and Method name
+                climber.setDesiredState(Climber.DesiredState.EXTENDED); 
                 swerveDrive.setDesiredTranslationOverrideState(DesiredTranslationOverrideState.FROZEN);
             })
         );
 
         xboxDriver.getRightBumper().onFalse(
             new InstantCommand(() -> {
-                climber.setSetpoint(Climber.ClimberSetpoint.LIFTED);
+                climber.setDesiredState(Climber.DesiredState.CLIMBED);
                 swerveDrive.setDesiredTranslationOverrideState(DesiredTranslationOverrideState.NONE);
             })
         );
+
 
 
         new Trigger(() -> 
