@@ -30,8 +30,8 @@ public class ClimberIOSim implements ClimberIO {
 
     public ClimberIOSim(ClimberConfig config) {
         this.config = config;
-        double maxVelRadPerSec = config.climberMaxVelocityRotationsPerSec * (2 * Math.PI);
-        double maxAccelRadPerSec2 = config.climberMaxAccelerationRotationsPerSec2 * (2 * Math.PI);
+        double maxVelRadPerSec = config.climberDefaultProfileMaxVelocityRotationsPerSec * (2 * Math.PI);
+        double maxAccelRadPerSec2 = config.climberDefaultProfileMaxAccelerationRotationsPerSec2 * (2 * Math.PI);
         climberFeedback =
             new ProfiledPIDController(
                 config.climberKP,
@@ -71,7 +71,11 @@ public class ClimberIOSim implements ClimberIO {
     }
 
     @Override
-    public void setPosition(double positionRotations) {
+    public void setPosition(
+        double positionRotations,
+        double maxVelocityRotationsPerSec,
+        double maxAccelerationRotationsPerSec2
+    ) {
         if (isClimberEStopped) {
             climberSim.setInputVoltage(0);
             isClimberClosedLoop = false;
@@ -80,6 +84,10 @@ public class ClimberIOSim implements ClimberIO {
         double clampedPosition = MathUtil.clamp(positionRotations,
             config.climberMinPositionRotations,
             config.climberMaxPositionRotations);
+        climberFeedback.setConstraints(new TrapezoidProfile.Constraints(
+            Math.abs(maxVelocityRotationsPerSec) * (2 * Math.PI),
+            Math.abs(maxAccelerationRotationsPerSec2) * (2 * Math.PI)
+        ));
         climberFeedback.setGoal(clampedPosition * (2 * Math.PI));
         isClimberClosedLoop = true;
     }

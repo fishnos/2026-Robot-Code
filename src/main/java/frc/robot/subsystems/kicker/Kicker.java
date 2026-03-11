@@ -11,7 +11,6 @@ import frc.robot.configs.KickerConfig;
 import frc.robot.constants.Constants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
-import frc.robot.lib.util.LoopCycleProfiler;
 
 public class Kicker extends SubsystemBase {
     private static Kicker instance = null;
@@ -75,28 +74,17 @@ public class Kicker extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long updateInputsStartNanos = LoopCycleProfiler.markStart();
         kickerIO.updateInputs(kickerInputs);
-        LoopCycleProfiler.endSection("Kicker/UpdateInputs", updateInputsStartNanos);
-
-        long processInputsStartNanos = LoopCycleProfiler.markStart();
         Logger.processInputs("Kicker", kickerInputs);
-        LoopCycleProfiler.endSection("Kicker/ProcessInputs", processInputsStartNanos);
 
         kickerDisconnectedAlert.set(enableConnectionAlerts && !kickerInputs.kickerMotorConnected);
 
         // Handle control loop configuration updates
-        long configUpdatesStartNanos = LoopCycleProfiler.markStart();
         pendingKickerControlLoopConfigApply |= kickerControlLoopConfigurator.hasChanged();
         if (DriverStation.isDisabled() && pendingKickerControlLoopConfigApply) {
             kickerIO.configureControlLoop(kickerControlLoopConfigurator.getConfig());
             pendingKickerControlLoopConfigApply = false;
         }
-        LoopCycleProfiler.endSection("Kicker/ControlLoopConfigUpdates", configUpdatesStartNanos);
-
-        LoopCycleProfiler.endSection("Kicker/PeriodicTotal", periodicStartNanos);
     }
 
     public void setKickerVelocity(double velocityRotationsPerSec) {

@@ -39,7 +39,6 @@ import frc.robot.configs.SwerveDrivetrainConfig;
 import frc.robot.configs.SwerveModuleGeneralConfig;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
-import frc.robot.lib.util.LoopCycleProfiler;
 import frc.robot.lib.BLine.ChassisRateLimiter;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.lib.BLine.Path;
@@ -373,7 +372,7 @@ public class SwerveDrive extends SubsystemBase {
                 drivetrainConfig.followPathCrossTrackKI,
                 drivetrainConfig.followPathCrossTrackKD
             )
-        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true).withShouldMirror(() -> true);
+        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true).withShouldMirror(() -> false);
 
         // Configure omega override PID controllers with velocity limiting
         omegaOverridePIDController = new PIDController(
@@ -395,18 +394,13 @@ public class SwerveDrive extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long loopDtStartNanos = LoopCycleProfiler.markStart();
         double dt = Timer.getTimestamp() - prevLoopTime; 
         prevLoopTime = Timer.getTimestamp();
 
         Logger.recordOutput("SwerveDrive/dtPeriodic", dt);
-        LoopCycleProfiler.endSection("SwerveDrive/LoopDt", loopDtStartNanos);
 
         // Thread safe reading of the gyro and swerve inputs.
         // The read lock is released only after inputs are written via the write lock
-        long inputReadStartNanos = LoopCycleProfiler.markStart();
         odometryLock.lock();
         try {
             gyroIO.updateInputs(gyroInputs);
@@ -426,18 +420,14 @@ public class SwerveDrive extends SubsystemBase {
             steerMotorDisconnectedAlerts[i].set(enableConnectionAlerts && !moduleInputs[i].steerMotorConnected);
             steerEncoderDisconnectedAlerts[i].set(enableConnectionAlerts && !moduleInputs[i].steerEncoderConnected);
         }
-        LoopCycleProfiler.endSection("SwerveDrive/ReadInputs", inputReadStartNanos);
 
-        long buildModuleStatesStartNanos = LoopCycleProfiler.markStart();
         for (int i = 0; i < 4; i++) {
             moduleStates[i] = new SwerveModuleState(
                 moduleInputs[i].driveVelocityMetersPerSec,
                 moduleInputs[i].steerPosition
             );
         }
-        LoopCycleProfiler.endSection("SwerveDrive/BuildModuleStates", buildModuleStatesStartNanos);
 
-        long configUpdateStartNanos = LoopCycleProfiler.markStart();
         pendingDriveControlLoopConfigApply |= driveControlLoopConfigurator.hasChanged();
         pendingSteerControlLoopConfigApply |= steerControlLoopConfigurator.hasChanged();
         if (DriverStation.isDisabled()) {
@@ -454,9 +444,7 @@ public class SwerveDrive extends SubsystemBase {
                 pendingSteerControlLoopConfigApply = false;
             }
         }
-        LoopCycleProfiler.endSection("SwerveDrive/ControlLoopConfigUpdates", configUpdateStartNanos);
 
-        long odometryStartNanos = LoopCycleProfiler.markStart();
         ArrayList<Pose2d> updatedPoses = Constants.VERBOSE_LOGGING_ENABLED ? new ArrayList<Pose2d>() : null;
 
         double[] odometryTimestampsSeconds = moduleInputs[0].odometryTimestampsSeconds;
@@ -495,22 +483,13 @@ public class SwerveDrive extends SubsystemBase {
             Logger.recordOutput("SwerveDrive/measuredModuleStates", moduleStates);
             Logger.recordOutput("SwerveDrive/measuredModulePositions", modulePositions);
         }
-        LoopCycleProfiler.endSection("SwerveDrive/Odometry", odometryStartNanos);
 
         // FSM processing
-        long stateTransitionsStartNanos = LoopCycleProfiler.markStart();
         handleStateTransitions();
-        LoopCycleProfiler.endSection("SwerveDrive/StateTransitions", stateTransitionsStartNanos);
 
-        long currentStateStartNanos = LoopCycleProfiler.markStart();
         handleCurrentState();
-        LoopCycleProfiler.endSection("SwerveDrive/CurrentStateHandling", currentStateStartNanos);
 
-        long commandLogStartNanos = LoopCycleProfiler.markStart();
         Logger.recordOutput("SwerveDrive/CurrentCommand", this.getCurrentCommand() == null ? "" : this.getCurrentCommand().toString());
-        LoopCycleProfiler.endSection("SwerveDrive/CurrentCommandLog", commandLogStartNanos);
-
-        LoopCycleProfiler.endSection("SwerveDrive/PeriodicTotal", periodicStartNanos);
     }
 
     /**

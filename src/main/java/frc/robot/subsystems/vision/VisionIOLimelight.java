@@ -107,20 +107,10 @@ public class VisionIOLimelight implements VisionIO {
                 rawMegatag2ObservationCount++;
             }
         }
-        VisionUtil.CoalescedObservationsResult coalescedObservations =
-            VisionUtil.coalesceCorrelatedObservations(poseObservations);
-
-        inputs.robotPoseObservations = coalescedObservations.observations().toArray(new PoseObservation[0]);
+        inputs.robotPoseObservations = poseObservations.toArray(new PoseObservation[0]);
         inputs.rawMegatag1ObservationCount = rawMegatag1ObservationCount;
         inputs.rawMegatag2ObservationCount = rawMegatag2ObservationCount;
-        inputs.rawObservationCount = coalescedObservations.rawObservationCount();
-        inputs.coalescedObservationCount = coalescedObservations.coalescedObservationCount();
-        inputs.coalescedDropCount = coalescedObservations.coalescedDropCount();
-        inputs.coalescedGroupSizes = coalescedObservations.groupSizes();
-        inputs.coalescedTranslationSourceTypes = coalescedObservations.translationSourceTypes();
-        inputs.coalescedTranslationDecisionReasons = coalescedObservations.translationDecisionReasons();
-        inputs.coalescedRotationSourceTypes = coalescedObservations.rotationSourceTypes();
-        inputs.coalescedRotationDecisionReasons = coalescedObservations.rotationDecisionReasons();
+        inputs.rawObservationCount = poseObservations.size();
 
         inputs.tagIds = new int[tagIds.size()];
         int i = 0;

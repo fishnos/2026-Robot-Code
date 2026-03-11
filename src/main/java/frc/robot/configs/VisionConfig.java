@@ -5,6 +5,13 @@ import edu.wpi.first.math.geometry.Transform3d;
 import java.util.List;
 
 public class VisionConfig {
+    public static enum ObservationMode {
+        BOTH,
+        MT1_ONLY,
+        MT2_ONLY,
+        MT2_WHILE_ENABLED_MT1_WHILE_DISABLED
+    }
+
     public static class CameraConfig {
         public String name;
         public double x;
@@ -13,6 +20,7 @@ public class VisionConfig {
         public double rollDeg;
         public double pitchDeg;
         public double yawDeg;
+        public ObservationMode observationMode;
 
         public Transform3d getRobotToCamera() {
             return new Transform3d(
@@ -23,6 +31,10 @@ public class VisionConfig {
                     Math.toRadians(rollDeg),
                     Math.toRadians(pitchDeg),
                     Math.toRadians(yawDeg)));
+        }
+
+        public ObservationMode getObservationMode() {
+            return observationMode != null ? observationMode : ObservationMode.BOTH;
         }
     }
 

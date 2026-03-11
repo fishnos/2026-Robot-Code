@@ -11,7 +11,6 @@ import frc.robot.configs.IntakeConfig;
 import frc.robot.constants.Constants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
-import frc.robot.lib.util.LoopCycleProfiler;
 
 public class Intake extends SubsystemBase {
     private static Intake instance = null;
@@ -84,20 +83,12 @@ public class Intake extends SubsystemBase {
 
     @Override
     public void periodic() {
-        long periodicStartNanos = LoopCycleProfiler.markStart();
-
-        long updateInputsStartNanos = LoopCycleProfiler.markStart();
         intakeIO.updateInputs(intakeInputs);
-        LoopCycleProfiler.endSection("Intake/UpdateInputs", updateInputsStartNanos);
-
-        long processInputsStartNanos = LoopCycleProfiler.markStart();
         Logger.processInputs("Intake", intakeInputs);
-        LoopCycleProfiler.endSection("Intake/ProcessInputs", processInputsStartNanos);
 
         rollerDisconnectedAlert.set(enableConnectionAlerts && !intakeInputs.rollerMotorConnected);
         pivotDisconnectedAlert.set(enableConnectionAlerts && !intakeInputs.pivotMotorConnected);
 
-        long configUpdatesStartNanos = LoopCycleProfiler.markStart();
         pendingRollerControlLoopConfigApply |= rollerControlLoopConfigurator.hasChanged();
         pendingPivotControlLoopConfigApply |= pivotControlLoopConfigurator.hasChanged();
         if (DriverStation.isDisabled()) {
@@ -110,9 +101,6 @@ public class Intake extends SubsystemBase {
                 pendingPivotControlLoopConfigApply = false;
             }
         }
-        LoopCycleProfiler.endSection("Intake/ControlLoopConfigUpdates", configUpdatesStartNanos);
-
-        LoopCycleProfiler.endSection("Intake/PeriodicTotal", periodicStartNanos);
     }
 
     private void setRollerVelocity(double velocityRotationsPerSec) {

@@ -18,7 +18,9 @@
   "climberLiftedPositionRotations": 2.0,
   "climberMinPositionRotations": 0.0,
   "climberMaxPositionRotations": 10.0,
-  "climberMaxVelocityRotationsPerSec": 4.0,
-  "climberMaxAccelerationRotationsPerSec2": 8.0,
+  "climberDefaultProfileMaxVelocityRotationsPerSec": 4.0,
+  "climberDefaultProfileMaxAccelerationRotationsPerSec2": 8.0,
+  "climberClimbingProfileMaxVelocityRotationsPerSec": 4.0,
+  "climberClimbingProfileMaxAccelerationRotationsPerSec2": 8.0,
   "climberPositionToleranceRotations": 0.05
 }

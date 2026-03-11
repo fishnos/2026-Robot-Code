@@ -10,7 +10,7 @@ import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.MotionMagicVoltage;
+import com.ctre.phoenix6.controls.DynamicMotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -35,7 +35,8 @@ public class ClimberIOTalonFX implements ClimberIO {
     private final StatusSignal<Current> climberTorqueCurrent;
     private final StatusSignal<Temperature> climberTemperature;
 
-    private final MotionMagicVoltage climberMotorRequest = new MotionMagicVoltage(0).withSlot(0).withEnableFOC(true);
+    private final DynamicMotionMagicVoltage climberMotorRequest =
+        new DynamicMotionMagicVoltage(0, 0, 0).withSlot(0).withEnableFOC(true);
 
     private final ClimberConfig config;
     private final TalonFXConfiguration climberConfig;
@@ -72,8 +73,8 @@ public class ClimberIOTalonFX implements ClimberIO {
         climberConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
         climberConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = config.climberMinPositionRotations;
 
-        climberConfig.MotionMagic.MotionMagicCruiseVelocity = config.climberMaxVelocityRotationsPerSec;
-        climberConfig.MotionMagic.MotionMagicAcceleration = config.climberMaxAccelerationRotationsPerSec2;
+        climberConfig.MotionMagic.MotionMagicCruiseVelocity = config.climberDefaultProfileMaxVelocityRotationsPerSec;
+        climberConfig.MotionMagic.MotionMagicAcceleration = config.climberDefaultProfileMaxAccelerationRotationsPerSec2;
 
         climberConfig.FutureProofConfigs = false;
 
@@ -87,7 +88,7 @@ public class ClimberIOTalonFX implements ClimberIO {
         climberTorqueCurrent = climberMotor.getTorqueCurrent().clone();
         climberTemperature = climberMotor.getDeviceTemp().clone();
 
-        BaseStatusSignal.setUpdateFrequencyForAll(100,
+        BaseStatusSignal.setUpdateFrequencyForAll(50,
             climberPositionStatusSignal, climberVelocityStatusSignal,
             climberMotorVoltage, climberTorqueCurrent, climberTemperature);
 
@@ -121,9 +122,15 @@ public class ClimberIOTalonFX implements ClimberIO {
     }
 
     @Override
-    public void setPosition(double positionRotations) {
+    public void setPosition(
+        double positionRotations,
+        double maxVelocityRotationsPerSec,
+        double maxAccelerationRotationsPerSec2
+    ) {
         double clampedPosition = Math.max(config.climberMinPositionRotations,
             Math.min(config.climberMaxPositionRotations, positionRotations));
+        climberMotorRequest.Velocity = Math.abs(maxVelocityRotationsPerSec);
+        climberMotorRequest.Acceleration = Math.abs(maxAccelerationRotationsPerSec2);
         climberMotor.setControl(climberMotorRequest.withPosition(clampedPosition));
     }
 

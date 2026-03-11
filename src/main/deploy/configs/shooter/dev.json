@@ -91,8 +91,8 @@
       "flightTimeSeconds": 1.725768
     }
   ],
-  "minShotDistFromShooterMeters": 2,
-  "maxShotDistFromShooterMeters": 3.3,
+  "minShotDistFromShooterMeters": 1.4,
+  "maxShotDistFromShooterMeters": 6.5,
   "minPassDistFromShooterMeters": 1.0,
   "maxPassDistFromShooterMeters": 17.0,
   "latencyCompensationSeconds": 0.0,
@@ -138,10 +138,10 @@
   "flywheelStatorCurrentLimit": 50.0,
   "flywheelPeakForwardTorqueCurrent": 50.0,
   "flywheelPeakReverseTorqueCurrent": 0,
-  "flywheelKS": 0,
-  "flywheelKV": 0,
+  "flywheelKS": 0.0,
+  "flywheelKV": 0.0,
   "flywheelKA": 0.0,
-  "flywheelKP": 99999999999,
+  "flywheelKP": 999999999,
   "flywheelKI": 0.0,
   "flywheelKD": 0.0,
   "flywheelMotorToOutputShaftRatio": 1.0,
@@ -186,6 +186,24 @@
       "hoodAngleDegrees": 58.0,
       "flywheelVelocityRPS": 33.0,
       "flightTimeSeconds": 1.15
+    },
+    {
+      "distanceMeters": 5.5,
+      "hoodAngleDegrees": 57.0,
+      "flywheelVelocityRPS": 33.3,
+      "flightTimeSeconds": 1.18
+    },
+    {
+      "distanceMeters": 6.0,
+      "hoodAngleDegrees": 57.0,
+      "flywheelVelocityRPS": 34.3,
+      "flightTimeSeconds": 1.21
+    },
+    {
+      "distanceMeters": 6.5,
+      "hoodAngleDegrees": 57.0,
+      "flywheelVelocityRPS": 37.3,
+      "flightTimeSeconds": 1.30
     }
   ]
 }

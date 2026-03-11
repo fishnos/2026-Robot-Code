@@ -84,6 +84,20 @@ class ShooterTurretResolutionTest {
     }
 
     @Test
+    // If clamping the current branch would leave the turret badly mis-aimed, choose the legal wrapped branch instead.
+    void resolveTurretTargetDegrees_avoidsPinningAtLimitWhenWrappedBranchCanStillTrackTarget() {
+        Shooter.TurretResolution resolution = Shooter.resolveTurretTargetDegrees(
+            20.0,
+            610.0,
+            -450.0,
+            630.0
+        );
+
+        assertFalse(resolution.usedUnwindFallback());
+        assertEquals(380.0, resolution.targetAngleDeg(), EPS);
+    }
+
+    @Test
     void resolveTurretGoalState_convertsFieldRelativeAngleAndVelocityToRobotRelative() {
         Shooter.TurretGoalState goalState = Shooter.resolveTurretGoalState(
             Rotation2d.fromDegrees(90.0),

@@ -74,7 +74,7 @@ public class HopperIOTalonFX implements HopperIO {
         hopperVelocityStatusSignal = hopperMotor.getVelocity().clone();
         hopperMotorVoltage = hopperMotor.getMotorVoltage().clone();
 
-        BaseStatusSignal.setUpdateFrequencyForAll(100,
+        BaseStatusSignal.setUpdateFrequencyForAll(50,
             hopperTorqueCurrent, hopperTemperature,
             hopperVelocityStatusSignal, hopperMotorVoltage);
 

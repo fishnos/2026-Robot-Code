@@ -16,7 +16,11 @@ public interface ClimberIO {
     }
 
     public default void updateInputs(ClimberIOInputs inputs) {}
-    public default void setPosition(double positionRotations) {}
+    public default void setPosition(
+        double positionRotations,
+        double maxVelocityRotationsPerSec,
+        double maxAccelerationRotationsPerSec2
+    ) {}
     public default void setVoltage(double voltage) {}
     public default void configureControlLoop(MotorControlLoopConfig config) {}
     public default void enableEStop() {}

@@ -2,6 +2,7 @@
   "cameras": [
     {
       "name": "limelight-fl",
+      "observationMode": "BOTH",
       "x": 0.071188,
       "y": 0.36293,
       "z": 0.50849,
@@ -11,6 +12,7 @@
     },
     {
       "name": "limelight-fr",
+      "observationMode": "BOTH",
       "x": 0.13709,
       "y": -0.30978,
       "z": 0.507,
@@ -20,6 +22,7 @@
     },
     {
       "name": "limelight-bl",
+      "observationMode": "BOTH",
       "x": -0.15338,
       "y": 0.306,
       "z": 0.50849,
@@ -29,6 +32,7 @@
     },
     {
       "name": "limelight-br",
+      "observationMode": "BOTH",
       "x": -0.071188,
       "y": -0.36293,
       "z": 0.50849,

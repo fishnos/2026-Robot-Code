@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.constants.AlignmentConstants;
@@ -53,10 +54,11 @@ public class RobotContainer {
 
     private final RobotState robotState = RobotState.getInstance();
     private final SwerveDrive swerveDrive = SwerveDrive.getInstance();
-    private final Superstructure superstructure = Superstructure.getInstance();
     private final Vision vision = Vision.getInstance();
     private final Shooter shooter = Shooter.getInstance();
     private final Hopper hopper = Hopper.getInstance();
+    private final Intake intake = Intake.getInstance();
+    private final Superstructure superstructure = Superstructure.getInstance();
     private final Intake intake = Intake.getInstance();
     private final Climber climber = Climber.getInstance();
 
@@ -100,12 +102,12 @@ public class RobotContainer {
     }
 
     private void registerEventTriggers() {
-        // FollowPath.registerEventTrigger("test1", new InstantCommand(() -> {
-        //     Logger.recordOutput("In a command", true);
-        // }));
-        // FollowPath.registerEventTrigger("test2", () -> {
-        //     System.out.println("As a runnable");
-        // });
+        FollowPath.registerEventTrigger("prepare_for_shot", new InstantCommand(() -> {
+            superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.READY_FOR_SHOT);
+        }));
+        FollowPath.registerEventTrigger("shoot", () -> {
+            superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
+        });
     }
 
     private void configureBindings() {
@@ -135,6 +137,14 @@ public class RobotContainer {
         );
         getRightBumper.onFalse(
             new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME))
+        );
+
+        Trigger getLeftBumper = new Trigger(() -> xboxDriver.getLeftTrigger() > 0.5);
+        getLeftBumper.onTrue(
+            new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.INTAKING))
+        );
+        getLeftBumper.onFalse(
+            new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.DEPLOYED))
         );
 
         // xboxDriver.getBButton().onTrue(
@@ -269,7 +279,8 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return followPath(new Path("1"), true).andThen(followPath(new Path("2"), false));
+        return followPath(new Path("outpost"), false).andThen(new WaitCommand(8.0)).andThen(followPath(new Path("outpost_to_tower"), false))
+        .andThen(new WaitCommand(3.0)).andThen(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
         // return null;
     }
 }

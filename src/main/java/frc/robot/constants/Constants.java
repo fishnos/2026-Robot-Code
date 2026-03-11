@@ -43,7 +43,7 @@ public final class Constants {
         public static final boolean SHOOTER = false;
         public static final boolean KICKER = false;
         public static final boolean HOPPER = false;
-        public static final boolean INTAKE = true;
+        public static final boolean INTAKE = false;
         public static final boolean CLIMBER = true;
         public static final boolean VISION = false;
 

@@ -5,7 +5,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.constants.AlignmentConstants;
 import frc.robot.constants.ClimbingConstants;
-import frc.robot.constants.ZoneConstants.RectangleZone;
 import frc.robot.lib.BLine.Path;
 import frc.robot.lib.BLine.Path.PathElement;
 import frc.robot.lib.BLine.Path.PathConstraints;
@@ -20,8 +19,7 @@ public final class AutoPaths {
 
     public enum AutoClimbRejectReason {
         OUTSIDE_INCLUSION_ZONE,
-        INSIDE_EXCLUSION_ZONE,
-        NO_LINE_OF_SIGHT
+        INSIDE_EXCLUSION_ZONE
     }
 
     public record AutoClimbPlan(
@@ -48,27 +46,18 @@ public final class AutoPaths {
     ) {
         boolean withinInclusionZone = ZoneUtil.isPoseInAnyZone(currentPose, target.inclusionZones(), true);
         boolean withinExclusionZone = ZoneUtil.isPoseInAnyZone(currentPose, target.exclusionZones(), true);
-        boolean hasLineOfSightToFinal = hasClearPathToWaypoint(
-            currentPose.getTranslation(),
-            target.finalClimbPose().getTranslation(),
-            target.exclusionZones()
-        );
 
         Logger.recordOutput("AutoPaths/AutoClimb/currentPose", currentPose);
         Logger.recordOutput("AutoPaths/AutoClimb/targetPreClimbPose", target.preClimbPose());
         Logger.recordOutput("AutoPaths/AutoClimb/targetFinalPose", target.finalClimbPose());
         Logger.recordOutput("AutoPaths/AutoClimb/withinInclusionZone", withinInclusionZone);
         Logger.recordOutput("AutoPaths/AutoClimb/withinExclusionZone", withinExclusionZone);
-        Logger.recordOutput("AutoPaths/AutoClimb/hasLineOfSightToFinal", hasLineOfSightToFinal);
 
         if (withinExclusionZone) {
             return rejected(AutoClimbRejectReason.INSIDE_EXCLUSION_ZONE);
         }
         if (!withinInclusionZone) {
             return rejected(AutoClimbRejectReason.OUTSIDE_INCLUSION_ZONE);
-        }
-        if (!hasLineOfSightToFinal) {
-            return rejected(AutoClimbRejectReason.NO_LINE_OF_SIGHT);
         }
 
         ArrayList<Pose2d> approachWaypoints = new ArrayList<>();
@@ -85,17 +74,6 @@ public final class AutoPaths {
             );
         }
         approachWaypoints.add(target.preClimbPose());
-
-        if (!areSegmentsClear(currentPose, approachWaypoints, target.exclusionZones())) {
-            return rejected(AutoClimbRejectReason.NO_LINE_OF_SIGHT);
-        }
-        if (!hasClearPathToWaypoint(
-            target.preClimbPose().getTranslation(),
-            target.finalClimbPose().getTranslation(),
-            target.exclusionZones()
-        )) {
-            return rejected(AutoClimbRejectReason.NO_LINE_OF_SIGHT);
-        }
 
         Path approachPath = buildMirroredPathFromWaypoints(
             approachWaypoints,
@@ -165,40 +143,6 @@ public final class AutoPaths {
         );
     }
 
-    static boolean areSegmentsClear(
-        Pose2d startPose,
-        List<Pose2d> waypoints,
-        List<RectangleZone> exclusionZones
-    ) {
-        Translation2d segmentStart = startPose.getTranslation();
-        for (Pose2d waypoint : waypoints) {
-            if (!hasClearPathToWaypoint(segmentStart, waypoint.getTranslation(), exclusionZones)) {
-                return false;
-            }
-            segmentStart = waypoint.getTranslation();
-        }
-        return true;
-    }
-
-    static boolean hasClearPathToWaypoint(
-        Translation2d start,
-        Translation2d end,
-        List<RectangleZone> exclusionZones
-    ) {
-        for (RectangleZone exclusionZone : exclusionZones) {
-            if (!ZoneUtil.hasLineOfSightWithRectangularBlocker(
-                start,
-                end,
-                exclusionZone,
-                ClimbingConstants.EXCLUSION_ZONE_PADDING_METERS,
-                true
-            )) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private static Path buildMirroredPathFromWaypoints(List<Pose2d> waypoints, PathConstraints constraints) {
         ArrayList<PathElement> pathElements = new ArrayList<>(waypoints.size());
         for (Pose2d waypoint : waypoints) {
@@ -208,7 +152,8 @@ public final class AutoPaths {
         Path path = new Path(pathElements, constraints);
         // SwerveDrive's shared FollowPath builder applies a global mirror to every path.
         // Pre-mirror on-the-fly climb paths so runtime execution stays in the same field frame
-        // used by RobotState, zones, and the climb target constants.
+        // used by RobotState, zones, and the climb target constants. 
+        // TODO: at some point, this may not be the case anymore
         path.mirror();
         return path;
     }

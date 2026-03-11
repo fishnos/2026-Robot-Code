@@ -76,7 +76,7 @@ public class KickerIOTalonFX implements KickerIO {
         kickerVelocityStatusSignal = kickerMotor.getVelocity().clone();
         kickerMotorVoltage = kickerMotor.getMotorVoltage().clone();
 
-        BaseStatusSignal.setUpdateFrequencyForAll(100,
+        BaseStatusSignal.setUpdateFrequencyForAll(50,
             kickerTorqueCurrent, kickerTemperature,
             kickerVelocityStatusSignal, kickerMotorVoltage);
 

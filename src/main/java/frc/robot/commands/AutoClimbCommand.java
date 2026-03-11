@@ -56,11 +56,11 @@ public class AutoClimbCommand extends SequentialCommandGroup {
             followPath(plan.approachPath()),
             new WaitUntilCommand(superstructure::isClimbExtended),
             followPath(plan.finalPath()),
-            new InstantCommand(() -> superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.CLIMBING)),
-            new WaitUntilCommand(() -> superstructure.getCurrentClimbState() == Superstructure.CurrentClimbState.CLIMBING)
+            new InstantCommand(() -> superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.CLIMBED)),
+            new WaitUntilCommand(() -> superstructure.getCurrentClimbState() == Superstructure.CurrentClimbState.CLIMBED)
         ).finallyDo(interrupted -> {
             swerveDrive.setDesiredSystemState(restoreState);
-            if (interrupted && superstructure.getDesiredClimbState() != Superstructure.DesiredClimbState.CLIMBING) {
+            if (interrupted && superstructure.getDesiredClimbState() != Superstructure.DesiredClimbState.CLIMBED) {
                 superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.EXTENDED);
             }
         });
@@ -76,17 +76,11 @@ public class AutoClimbCommand extends SequentialCommandGroup {
     }
 
     private boolean shouldWaitForInitialExtension() {
-        return superstructure.getCurrentClimbState() == Superstructure.CurrentClimbState.CLIMBING
-            || superstructure.getDesiredClimbState() == Superstructure.DesiredClimbState.CLIMBING;
+        return superstructure.getCurrentClimbState() == Superstructure.CurrentClimbState.CLIMBED
+            || superstructure.getDesiredClimbState() == Superstructure.DesiredClimbState.CLIMBED;
     }
 
     private SwerveDrive.DesiredSystemState determineRestoreSwerveState() {
-        if (DriverStation.isTeleopEnabled()) {
-            return SwerveDrive.DesiredSystemState.TELEOP;
-        }
-        if (DriverStation.isAutonomousEnabled()) {
-            return SwerveDrive.DesiredSystemState.IDLE;
-        }
         SwerveDrive.DesiredSystemState currentDesiredState = swerveDrive.getDesiredSystemState();
         return currentDesiredState == SwerveDrive.DesiredSystemState.FOLLOW_PATH
             ? SwerveDrive.DesiredSystemState.IDLE

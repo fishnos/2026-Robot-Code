@@ -44,11 +44,11 @@ class AutoPathsTest {
     }
 
     @Test
-    void planAutoClimb_rejectsWhenLineOfSightToFinalIsBlocked() {
+    void planAutoClimb_rejectsWhenRobotStartsInsideExclusionZone() {
         RectangleZone blocker = new RectangleZone(
             "blocker",
-            new Translation2d(2.5, 1.8),
-            new Translation2d(3.5, 2.2)
+            new Translation2d(3.5, 1.0),
+            new Translation2d(4.5, 3.0)
         );
 
         AutoPaths.AutoClimbPlanningResult result = AutoPaths.planAutoClimb(
@@ -57,7 +57,7 @@ class AutoPathsTest {
         );
 
         assertFalse(result.isAccepted());
-        assertEquals(AutoPaths.AutoClimbRejectReason.NO_LINE_OF_SIGHT, result.rejectReason());
+        assertEquals(AutoPaths.AutoClimbRejectReason.INSIDE_EXCLUSION_ZONE, result.rejectReason());
     }
 
     @Test

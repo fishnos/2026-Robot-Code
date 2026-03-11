@@ -27,8 +27,10 @@ public class ClimberConfig {
     public double climberMinPositionRotations;
     public double climberMaxPositionRotations;
 
-    public double climberMaxVelocityRotationsPerSec;
-    public double climberMaxAccelerationRotationsPerSec2;
+    public double climberDefaultProfileMaxVelocityRotationsPerSec;
+    public double climberDefaultProfileMaxAccelerationRotationsPerSec2;
+    public double climberClimbingProfileMaxVelocityRotationsPerSec;
+    public double climberClimbingProfileMaxAccelerationRotationsPerSec2;
 
     public double climberPositionToleranceRotations;
 }

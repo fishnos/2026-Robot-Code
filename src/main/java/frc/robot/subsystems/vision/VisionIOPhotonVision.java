@@ -113,6 +113,7 @@ public class VisionIOPhotonVision implements VisionIO {
     for (int i = 0; i < poseObservations.size(); i++) {
       inputs.robotPoseObservations[i] = poseObservations.get(i);
     }
+    inputs.rawObservationCount = poseObservations.size();
 
     // Save tag IDs to inputs objects
     inputs.tagIds = new int[tagIds.size()];
