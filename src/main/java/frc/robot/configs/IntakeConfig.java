@@ -3,27 +3,52 @@ package frc.robot.configs;
 public class IntakeConfig {
     public String canBusName;
 
-    public int intakeCanId;
-    public boolean isIntakeInverted;
+    public int rollerCanId;
+    public boolean isRollerInverted;
 
-    public double intakeSupplyCurrentLimit;
-    public double intakeSupplyCurrentLimitLowerTime;
-    public double intakeSupplyCurrentLimitLowerLimit;
-    public double intakeStatorCurrentLimit;
-    public double intakePeakForwardTorqueCurrent;
-    public double intakePeakReverseTorqueCurrent;
+    public double rollerStatorCurrentLimit;
+    public double rollerPeakForwardTorqueCurrent;
+    public double rollerPeakReverseTorqueCurrent;
 
-    public double intakeKS;
-    public double intakeKV;
-    public double intakeKA;
-    public double intakeKP;
-    public double intakeKI;
-    public double intakeKD;
+    public double rollerKS;
+    public double rollerKV;
+    public double rollerKA;
+    public double rollerKP;
+    public double rollerKI;
+    public double rollerKD;
 
-    public double intakeMotorToOutputShaftRatio;
+    public double rollerMotorToOutputShaftRatio;
 
     public double intakingVelocityRPS;
     public double outtakingVelocityRPS;
 
-    public double intakeVelocityToleranceRPS;
+    public double rollerVelocityToleranceRPS;
+
+    public int pivotCanId;
+    public boolean isPivotInverted;
+
+    public double pivotStatorCurrentLimit;
+    public double pivotPeakForwardTorqueCurrent;
+    public double pivotPeakReverseTorqueCurrent;
+
+    public double pivotKS;
+    public double pivotKV;
+    public double pivotKA;
+    public double pivotKG;
+    public double pivotKP;
+    public double pivotKI;
+    public double pivotKD;
+
+    public double pivotMotorToOutputShaftRatio;
+    public double pivotMaxVelocityRotationsPerSec;
+    public double pivotMaxAccelerationRotationsPerSec2;
+    public double pivotMaxJerkRotationsPerSec3;
+
+    public double pivotStartingAngleRotations;
+    public double pivotMinAngleRotations;
+    public double pivotMaxAngleRotations;
+
+    public double pivotAngleToleranceRotations;
+    public double pivotUpAngleRotations;
+    public double pivotDownAngleRotations;
 }

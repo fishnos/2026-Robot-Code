@@ -10,11 +10,13 @@ public interface ShooterIO {
         // Hood
         public double hoodAngleRotations = 0;
         public double hoodVelocityRotationsPerSec = 0;
+        public double hoodAppliedVolts = 0;
         public double hoodTorqueCurrent = 0;
 
         // Turret
         public double turretAngleRotations = 0;
         public double turretVelocityRotationsPerSec = 0;
+        public double turretAppliedVolts = 0;
         public double turretTorqueCurrent = 0;
 
         // Flywheel (leader)
@@ -23,6 +25,7 @@ public interface ShooterIO {
         public double flywheelTorqueCurrent = 0;
 
         // Flywheel (follower)
+        public double flywheelFollowerAppliedVolts = 0;
         public double flywheelFollowerTorqueCurrent = 0;
 
         // Temperatures
@@ -43,4 +46,10 @@ public interface ShooterIO {
     public default void configureHoodControlLoop(MotorControlLoopConfig config) {}
     public default void configureTurretControlLoop(MotorControlLoopConfig config) {}
     public default void configureFlywheelControlLoop(MotorControlLoopConfig config) {}
+    public default void enableHoodEStop() {}
+    public default void disableHoodEStop() {}
+    public default void enableTurretEStop() {}
+    public default void disableTurretEStop() {}
+    public default void enableFlywheelEStop() {}
+    public default void disableFlywheelEStop() {}
 }

@@ -14,8 +14,20 @@ public class DashboardMotorControlLoopConfigurator {
         double kD,
         double kS,
         double kV,
-        double kA
-    ) {}
+        double kA,
+        double kG
+    ) {
+        public MotorControlLoopConfig(
+            double kP,
+            double kI,
+            double kD,
+            double kS,
+            double kV,
+            double kA
+        ) {
+            this(kP, kI, kD, kS, kV, kA, 0.0);
+        }
+    }
 
     private final MotorControlLoopConfig defaults;
     private MotorControlLoopConfig previousConfigSinceHsaChangedCall;
@@ -25,7 +37,7 @@ public class DashboardMotorControlLoopConfigurator {
         // make LoggedNetworkNumbers for the config
         this.defaults = defaults;
         this.previousConfigSinceHsaChangedCall = defaults;
-        this.numbers = new LoggedNetworkNumber[6];
+        this.numbers = new LoggedNetworkNumber[7];
     
         this.numbers[0] = new LoggedNetworkNumber(tableKey + "/kP", defaults.kP);
         this.numbers[1] = new LoggedNetworkNumber(tableKey + "/kI", defaults.kI);
@@ -33,6 +45,7 @@ public class DashboardMotorControlLoopConfigurator {
         this.numbers[3] = new LoggedNetworkNumber(tableKey + "/kS", defaults.kS);
         this.numbers[4] = new LoggedNetworkNumber(tableKey + "/kV", defaults.kV);
         this.numbers[5] = new LoggedNetworkNumber(tableKey + "/kA", defaults.kA);
+        this.numbers[6] = new LoggedNetworkNumber(tableKey + "/kG", defaults.kG);
     }
 
     public MotorControlLoopConfig getConfig() {
@@ -42,7 +55,8 @@ public class DashboardMotorControlLoopConfigurator {
             numbers[2].get(),
             numbers[3].get(),
             numbers[4].get(),
-            numbers[5].get()
+            numbers[5].get(),
+            numbers[6].get()
         );
     }
 

@@ -4,6 +4,7 @@ import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Fahrenheit;
 import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.CANBus;
@@ -20,6 +21,7 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
+import edu.wpi.first.units.measure.Voltage;
 import frc.robot.configs.ClimberConfig;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator.MotorControlLoopConfig;
 import frc.robot.lib.util.PhoenixUtil;
@@ -29,6 +31,7 @@ public class ClimberIOTalonFX implements ClimberIO {
 
     private final StatusSignal<Angle> climberPositionStatusSignal;
     private final StatusSignal<AngularVelocity> climberVelocityStatusSignal;
+    private final StatusSignal<Voltage> climberMotorVoltage;
     private final StatusSignal<Current> climberTorqueCurrent;
     private final StatusSignal<Temperature> climberTemperature;
 
@@ -57,11 +60,7 @@ public class ClimberIOTalonFX implements ClimberIO {
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
 
-        climberConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
-        climberConfig.CurrentLimits.SupplyCurrentLimit = config.climberSupplyCurrentLimit;
-        climberConfig.CurrentLimits.SupplyCurrentLowerLimit = config.climberSupplyCurrentLimitLowerLimit;
-        climberConfig.CurrentLimits.SupplyCurrentLowerTime = config.climberSupplyCurrentLimitLowerTime;
-
+        climberConfig.CurrentLimits.SupplyCurrentLimitEnable = false;
         climberConfig.CurrentLimits.StatorCurrentLimitEnable = true;
         climberConfig.CurrentLimits.StatorCurrentLimit = config.climberStatorCurrentLimit;
 
@@ -84,12 +83,13 @@ public class ClimberIOTalonFX implements ClimberIO {
 
         climberPositionStatusSignal = climberMotor.getPosition().clone();
         climberVelocityStatusSignal = climberMotor.getVelocity().clone();
+        climberMotorVoltage = climberMotor.getMotorVoltage().clone();
         climberTorqueCurrent = climberMotor.getTorqueCurrent().clone();
         climberTemperature = climberMotor.getDeviceTemp().clone();
 
         BaseStatusSignal.setUpdateFrequencyForAll(100,
             climberPositionStatusSignal, climberVelocityStatusSignal,
-            climberTorqueCurrent, climberTemperature);
+            climberMotorVoltage, climberTorqueCurrent, climberTemperature);
 
         climberMotor.optimizeBusUtilization();
     }
@@ -98,11 +98,11 @@ public class ClimberIOTalonFX implements ClimberIO {
     public void updateInputs(ClimberIOInputs inputs) {
         BaseStatusSignal.refreshAll(
             climberPositionStatusSignal, climberVelocityStatusSignal,
-            climberTorqueCurrent, climberTemperature);
+            climberMotorVoltage, climberTorqueCurrent, climberTemperature);
 
         inputs.positionRotations = climberPositionStatusSignal.getValue().in(Rotations);
         inputs.velocityRotationsPerSec = climberVelocityStatusSignal.getValue().in(RotationsPerSecond);
-        inputs.appliedVolts = climberMotor.getMotorVoltage().getValueAsDouble();
+        inputs.appliedVolts = climberMotorVoltage.getValue().in(Volts);
         inputs.torqueCurrent = climberTorqueCurrent.getValue().in(Amps);
         inputs.temperatureFahrenheit = climberTemperature.getValue().in(Fahrenheit);
     }
@@ -128,6 +128,18 @@ public class ClimberIOTalonFX implements ClimberIO {
         climberConfig.Slot0.kV = config.kV();
         climberConfig.Slot0.kA = config.kA();
 
+        PhoenixUtil.tryUntilOk(5, () -> climberMotor.getConfigurator().apply(climberConfig, 0.25));
+    }
+
+    @Override
+    public void enableEStop() {
+        climberConfig.CurrentLimits.StatorCurrentLimit = 0;
+        PhoenixUtil.tryUntilOk(5, () -> climberMotor.getConfigurator().apply(climberConfig, 0.25));
+    }
+
+    @Override
+    public void disableEStop() {
+        climberConfig.CurrentLimits.StatorCurrentLimit = config.climberStatorCurrentLimit;
         PhoenixUtil.tryUntilOk(5, () -> climberMotor.getConfigurator().apply(climberConfig, 0.25));
     }
 }

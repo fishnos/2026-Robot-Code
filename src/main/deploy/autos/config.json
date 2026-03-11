@@ -1,7 +1,6 @@
 {
   "gui": {
     "robot": {
-<<<<<<< HEAD
       "length_meters": 0.7747,
       "width_meters": 0.9588
     },
@@ -12,22 +11,6 @@
       "default_state": "hidden",
       "show_on_event_keys": ["start_intake"],
       "hide_on_event_keys": ["pickup_intake"]
-=======
-      "length_meters": 0.9461,
-      "width_meters": 1.106
-    },
-    "protrusions": {
-      "enabled": true,
-      "distance_meters": 0.3,
-      "side": "front",
-      "default_state": "hidden",
-      "show_on_event_keys": [
-        "drop_intake"
-      ],
-      "hide_on_event_keys": [
-        "pickup_intake"
-      ]
->>>>>>> parent of 123e210 (Merge branch 'King-Dev' of https://github.com/fishnos/2026-Robot-Code into King-Dev)
     }
   },
   "kinematic_constraints": {
@@ -39,8 +22,4 @@
     "default_end_translation_tolerance_meters": 0.03,
     "default_end_rotation_tolerance_deg": 2.0
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> parent of 123e210 (Merge branch 'King-Dev' of https://github.com/fishnos/2026-Robot-Code into King-Dev)

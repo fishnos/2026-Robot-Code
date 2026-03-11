@@ -4,14 +4,7 @@
 
 package frc.robot.constants;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
-import frc.robot.configs.SwerveConfig;
-import frc.robot.lib.util.ConfigLoader;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide
@@ -26,8 +19,7 @@ import frc.robot.lib.util.ConfigLoader;
  * constants are needed, to reduce verbosity.
  */
 public final class Constants {
-    public static final Mode currentMode = Mode.COMP; // TODO: change this if sim
-    public static boolean agentMode = false;
+    public static final Mode currentMode = Mode.DEV; // TODO: change this if sim
 
     // public static final boolean isSYSID = true; // TODO: change this if sysid
 
@@ -43,6 +35,38 @@ public final class Constants {
 
         /** Replaying from a log file. */
         REPLAY
+    }
+
+    public static final class SimOnlySubsystems {
+        public static final boolean SWERVE = false;
+        public static final boolean SHOOTER = false;
+        public static final boolean KICKER = false;
+        public static final boolean HOPPER = false;
+        public static final boolean INTAKE = true;
+        public static final boolean CLIMBER = true;
+        public static final boolean VISION = false;
+
+        private SimOnlySubsystems() {}
+    }
+
+    /**
+     * Returns true if the subsystem should use simulation IO and config.
+     * - If simOnlyFlag is false: use normal mode-based behavior
+     * - If simOnlyFlag is true AND mode is REPLAY: use normal replay behavior (COMP config)
+     * - If simOnlyFlag is true AND mode is NOT REPLAY: force simulation
+     */
+    public static boolean shouldUseSimulation(boolean simOnlyFlag) {
+        if (!simOnlyFlag) {
+            // Normal behavior: use simulation only in SIM mode
+            return currentMode == Mode.SIM;
+        }
+        // Sim-only flag is enabled
+        // In REPLAY mode, preserve normal replay behavior (don't force sim)
+        if (currentMode == Mode.REPLAY) {
+            return false;
+        }
+        // In all other modes (SIM, COMP, DEV), use simulation
+        return true;
     }
 
     public static final double kLOOP_CYCLE_MS;
@@ -86,61 +110,6 @@ public final class Constants {
         public static final double RIGHT_X_DEADBAND = 0.12;
 
         private OperatorConstants() {}
-    }
-
-    public static final class VisionConstants {
-
-        private VisionConstants() {}
-    }
-
-    public static final class AlignmentConstants {
-
-        private AlignmentConstants() {}
-    }
-
-    public static final class ScoreTowerConstants {
-        public static final double MAX_VELOCITY_METERS_PER_SEC = 2.65;
-        public static final double MAX_ACCELERATION_METERS_PER_SEC2 = 8.0;
-        public static final double APPROACH_MAX_VELOCITY_METERS_PER_SEC = 2.15;
-        public static final Translation2d INTERMEDIATE_CLEARANCE_METERS = new Translation2d(
-                RobotConstants.robotWidth / 2.0 - 0.3, RobotConstants.robotWidth / 2.0 + 0.35);
-        public static final double DUPLICATE_TRANSLATION_EPSILON_METERS = 1e-3;
-
-        public static final Pose2d[] TOWER_WAYPOINTS = {
-                new Pose2d(
-                        Units.inchesToMeters(59.76),
-                        Units.inchesToMeters(141.2),
-                        Rotation2d.fromDegrees(180.0)),
-                new Pose2d(
-                        Units.inchesToMeters(59.76),
-                        Units.inchesToMeters(149.094),
-                        Rotation2d.fromDegrees(180.0)),
-                new Pose2d(
-                        Units.inchesToMeters(59.76),
-                        Units.inchesToMeters(163.0),
-                        Rotation2d.fromDegrees(180.0))
-        };
-
-        private ScoreTowerConstants() {}
-    }
-
-    public static final class FieldConstants {
-        public static final Translation3d kSHOOTER_TARGET = new Translation3d(49.85, 50.0, 0.46);
-
-        public static final double fieldLength = Units.inchesToMeters(651.22);
-        public static final double fieldWidth = Units.inchesToMeters(317.69);
-
-        private FieldConstants() {}
-    }
-
-    public static final class RobotConstants {
-        static SwerveConfig swerveConfig = ConfigLoader.load("swerve", SwerveConfig.class);
-
-        public static final double robotWidth = Math.abs(
-                Math.max(swerveConfig.drivetrain.frontLeftY, swerveConfig.drivetrain.backLeftY)
-                        - Math.min(swerveConfig.drivetrain.frontRightY, swerveConfig.drivetrain.backRightY));
-
-        private RobotConstants() {}
     }
 
     public static boolean shouldFlipPath() {

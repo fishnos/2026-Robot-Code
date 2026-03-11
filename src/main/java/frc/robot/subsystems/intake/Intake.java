@@ -3,9 +3,9 @@ package frc.robot.subsystems.intake;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.configs.IntakeConfig;
+import frc.robot.constants.Constants;
 import frc.robot.lib.util.ConfigLoader;
 import frc.robot.lib.util.DashboardMotorControlLoopConfigurator;
 
@@ -19,44 +19,53 @@ public class Intake extends SubsystemBase {
         return instance;
     }
 
-    public enum IntakeCurrentState {
+    public enum IntakeSetpoint {
         DISABLED,
-        HOME,
+        STOWED,
+        DEPLOYED,
         INTAKING,
         OUTTAKING
     }
-
-    public enum IntakeDesiredState {
-        DISABLED,
-        HOME,
-        INTAKING,
-        OUTTAKING
-    }
-
-    private IntakeCurrentState currentState = IntakeCurrentState.DISABLED;
-    private IntakeDesiredState desiredState = IntakeDesiredState.DISABLED;
 
     private final IntakeIO intakeIO;
     private final IntakeIOInputsAutoLogged intakeInputs = new IntakeIOInputsAutoLogged();
 
     private final IntakeConfig config;
 
-    private final DashboardMotorControlLoopConfigurator intakeControlLoopConfigurator;
+    private final DashboardMotorControlLoopConfigurator rollerControlLoopConfigurator;
+    private final DashboardMotorControlLoopConfigurator pivotControlLoopConfigurator;
 
-    private double intakeSetpointRPS = 0.0;
+    private double rollerSetpointRPS = 0.0;
+    private double pivotSetpointRotations = 0.0;
 
     private Intake() {
-        config = ConfigLoader.load("intake", IntakeConfig.class);
-        intakeIO = RobotBase.isSimulation() ? new IntakeIOSim(config) : new IntakeIOTalonFX(config);
+        boolean useSimulation = Constants.shouldUseSimulation(Constants.SimOnlySubsystems.INTAKE);
+        config = ConfigLoader.load(
+            "intake",
+            ConfigLoader.getModeFolder(Constants.SimOnlySubsystems.INTAKE),
+            IntakeConfig.class
+        );
+        intakeIO = useSimulation ? new IntakeIOSim(config) : new IntakeIOTalonFX(config);
 
-        intakeControlLoopConfigurator = new DashboardMotorControlLoopConfigurator("Intake/intakeControlLoop",
+        rollerControlLoopConfigurator = new DashboardMotorControlLoopConfigurator("Intake/rollerControlLoop",
             new DashboardMotorControlLoopConfigurator.MotorControlLoopConfig(
-                config.intakeKP,
-                config.intakeKI,
-                config.intakeKD,
-                config.intakeKS,
-                config.intakeKV,
-                config.intakeKA
+                config.rollerKP,
+                config.rollerKI,
+                config.rollerKD,
+                config.rollerKS,
+                config.rollerKV,
+                config.rollerKA
+            )
+        );
+        pivotControlLoopConfigurator = new DashboardMotorControlLoopConfigurator("Intake/pivotControlLoop",
+            new DashboardMotorControlLoopConfigurator.MotorControlLoopConfig(
+                config.pivotKP,
+                config.pivotKI,
+                config.pivotKD,
+                config.pivotKS,
+                config.pivotKV,
+                config.pivotKA,
+                config.pivotKG
             )
         );
     }
@@ -66,95 +75,90 @@ public class Intake extends SubsystemBase {
         intakeIO.updateInputs(intakeInputs);
         Logger.processInputs("Intake", intakeInputs);
 
-        if (intakeControlLoopConfigurator.hasChanged()) {
-            intakeIO.configureControlLoop(intakeControlLoopConfigurator.getConfig());
+        if (rollerControlLoopConfigurator.hasChanged()) {
+            intakeIO.configureControlLoop(rollerControlLoopConfigurator.getConfig());
         }
-
-        handleStateTransitions();
-        handleCurrentState();
-    }
-
-    private void handleStateTransitions() {
-        switch (desiredState) {
-            case DISABLED:
-                currentState = IntakeCurrentState.DISABLED;
-                break;
-            case HOME:
-                currentState = IntakeCurrentState.HOME;
-                break;
-            case INTAKING:
-                currentState = IntakeCurrentState.INTAKING;
-                break;
-            case OUTTAKING:
-                currentState = IntakeCurrentState.OUTTAKING;
-                break;
+        if (pivotControlLoopConfigurator.hasChanged()) {
+            intakeIO.configurePivotControlLoop(pivotControlLoopConfigurator.getConfig());
         }
     }
 
-    private void handleCurrentState() {
-        switch (currentState) {
-            case DISABLED:
-                handleDISABLEDState();
-                break;
-            case HOME:
-                handleHomeState();
-                break;
-            case INTAKING:
-                handleIntakingState();
-                break;
-            case OUTTAKING:
-                handleOuttakingState();
-                break;
-        }
-    }
-
-    private void handleDISABLEDState() {
-        setIntakeVelocity(0);
-    }
-
-    private void handleHomeState() {
-        setIntakeVelocity(0);
-    }
-
-    private void handleIntakingState() {
-        setIntakeVelocity(config.intakingVelocityRPS);
-    }
-
-    private void handleOuttakingState() {
-        setIntakeVelocity(config.outtakingVelocityRPS);
-    }
-
-    private void setIntakeVoltage(double voltage) {
-        Logger.recordOutput("Intake/voltageSetpoint", voltage);
-        intakeIO.setVoltage(voltage);
-    }
-    
-    private void setIntakeVelocity(double velocityRotationsPerSec) {
-        intakeSetpointRPS = velocityRotationsPerSec;
-        Logger.recordOutput("Intake/velocitySetpointRPS", velocityRotationsPerSec);
+    private void setRollerVelocity(double velocityRotationsPerSec) {
+        rollerSetpointRPS = velocityRotationsPerSec;
+        Logger.recordOutput("Intake/rollerVelocitySetpointRPS", velocityRotationsPerSec);
         intakeIO.setVelocity(velocityRotationsPerSec);
     }
 
-    @AutoLogOutput(key = "Intake/currentState")
-    public IntakeCurrentState getCurrentState() {
-        return currentState;
+    private void setPivotAngle(double angleRotations) {
+        pivotSetpointRotations = angleRotations;
+        Logger.recordOutput("Intake/pivotAngleSetpointRotations", angleRotations);
+        intakeIO.setPivotAngle(angleRotations);
     }
 
-    @AutoLogOutput(key = "Intake/desiredState")
-    public IntakeDesiredState getDesiredState() {
-        return desiredState;
+    public void setSetpoint(IntakeSetpoint setpoint) {
+        switch (setpoint) {
+            case DISABLED:
+                setPivotAngle(intakeInputs.pivotAngleRotations);
+                setRollerVelocity(0.0);
+                break;
+            case STOWED:
+                setPivotAngle(config.pivotUpAngleRotations);
+                setRollerVelocity(0.0);
+                break;
+            case DEPLOYED:
+                setPivotAngle(config.pivotDownAngleRotations);
+                setRollerVelocity(0.0);
+                break;
+            case INTAKING:
+                setPivotAngle(config.pivotDownAngleRotations);
+                setRollerVelocity(config.intakingVelocityRPS);
+                break;
+            case OUTTAKING:
+                setPivotAngle(config.pivotDownAngleRotations);
+                setRollerVelocity(config.outtakingVelocityRPS);
+                break;
+        }
     }
 
-    public void setDesiredState(IntakeDesiredState desiredState) {
-        this.desiredState = desiredState;
+    public double getRollerVelocityRotationsPerSec() {
+        return intakeInputs.rollerVelocityRotationsPerSec;
     }
 
-    public double getIntakeVelocityRotationsPerSec() {
-        return intakeInputs.velocityRotationsPerSec;
+    public double getPivotAngleRotations() {
+        return intakeInputs.pivotAngleRotations;
     }
 
-    @AutoLogOutput(key = "Intake/isIntakeAtSetpoint")
-    public boolean isIntakeAtSetpoint() {
-        return Math.abs(intakeInputs.velocityRotationsPerSec - intakeSetpointRPS) < config.intakeVelocityToleranceRPS;
+    public void enableRollerEStop() {
+        intakeIO.enableRollerEStop();
+    }
+
+    public void disableRollerEStop() {
+        intakeIO.disableRollerEStop();
+    }
+
+    public void enablePivotEStop() {
+        intakeIO.enablePivotEStop();
+    }
+
+    public void disablePivotEStop() {
+        intakeIO.disablePivotEStop();
+    }
+
+    @AutoLogOutput(key = "Intake/isRollerAtSetpoint")
+    public boolean isRollerAtSetpoint() {
+        return Math.abs(intakeInputs.rollerVelocityRotationsPerSec - rollerSetpointRPS)
+            < config.rollerVelocityToleranceRPS;
+    }
+
+    @AutoLogOutput(key = "Intake/isPivotAtSetpoint")
+    public boolean isPivotAtSetpoint() {
+        return Math.abs(intakeInputs.pivotAngleRotations - pivotSetpointRotations)
+            < config.pivotAngleToleranceRotations;
+    }
+
+    @AutoLogOutput(key = "Intake/isStowed")
+    public boolean isStowed() {
+        return Math.abs(intakeInputs.pivotAngleRotations - config.pivotUpAngleRotations)
+            < config.pivotAngleToleranceRotations;
     }
 }

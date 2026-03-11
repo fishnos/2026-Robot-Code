@@ -1,106 +1,78 @@
-// Copyright (c) 2026 FRC 2638
-// http://github.com/rebels2638
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file at
-// the root directory of this project.
-
 package frc.robot.constants;
 
-import edu.wpi.first.math.geometry.*;
-import edu.wpi.first.math.util.Units;
+import org.littletonrobotics.junction.Logger;
 
-/**
- * Contains various field dimensions and useful reference points for the 2026
- * REBUILT game.
- * All units are in meters and poses have a blue alliance origin.
- * Currently using 2026 REBUILT official specifications.
- */
-public class AlignmentConstants {
-    public static final double startingLineX = Units.inchesToMeters(156.61);
-    public static final double fuelDiameter = Units.inchesToMeters(5.91);
+import edu.wpi.first.math.Pair;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import frc.robot.constants.ZoneConstants.RectangleZone;
+import frc.robot.lib.util.ZoneUtil;
 
-    public static class Outpost {
-        public static final Pose2d outpost = new Pose2d(
-                Units.inchesToMeters(0.0),
-                Units.inchesToMeters(34.72),
-                Rotation2d.fromDegrees(0.0));
-    }
+public final class AlignmentConstants {
+    private AlignmentConstants() {}
+    
+    public static final class Tower {
+        private Tower() {}
 
-    public static class Tower {
-        // left to right (facing the tower)
-        public static final Pose2d[] towerPoses = {
-            new Pose2d(
-                Units.inchesToMeters(59.76),
-                Units.inchesToMeters(133.2),
-                Rotation2d.fromDegrees(180.0)),
-            new Pose2d(
-                Units.inchesToMeters(59.76),
-                Units.inchesToMeters(148.094),
-                Rotation2d.fromDegrees(180.0)),
-            new Pose2d(
-                Units.inchesToMeters(59.76),
-                Units.inchesToMeters(163.0),
-                Rotation2d.fromDegrees(180.0))
-        };
+        public static final double INTERMEDIARY_MAX_VELOCITY_METERS_PER_SEC = 3;
+        public static final double APPROACH_MAX_VELOCITY_METERS_PER_SEC = .7;
 
-        public static final double towerWidth = Units.inchesToMeters(47.0);
+        public static final double INTERMEDIARY_TRANSLATION_TOLERANCE_METERS = 0.08;
+        public static final double INTERMEDIARY_ROTATION_TOLERANCE_DEG = 5;
 
-        public enum TowerLevel {
-            LOW(Units.inchesToMeters(27.0)),
-            MID(Units.inchesToMeters(45.0)),
-            HIGH(Units.inchesToMeters(63.0));
+        public static final class Left {
+            private Left() {}
 
-            TowerLevel(double height) {
-                this.height = height;
-            }
+            public static final Pair<Translation2d, Translation2d> BOUNDS = new Pair<>(
+                ZoneConstants.Tower.LEFT.cornerA(),
+                ZoneConstants.Tower.LEFT.cornerB()
+            );
 
-            public final double height;
+            public static final Pose2d INTERMEDIATE_WAYPOINT = new Pose2d(
+                1.846, 
+                4.636, 
+                Rotation2d.fromDegrees(-90)
+            ); 
+
+            public static final Pose2d FINAL_WAYPOINT = new Pose2d(
+                1.310, 
+                4.636, 
+                Rotation2d.fromDegrees(-90)
+            );
+        }
+        public static final class Right {
+            private Right() {}
+
+            public static final Pair<Translation2d, Translation2d> BOUNDS = new Pair<>(
+                ZoneConstants.Tower.RIGHT.cornerA(),
+                ZoneConstants.Tower.RIGHT.cornerB()
+            );
+
+            public static final Pose2d INTERMEDIATE_WAYPOINT = new Pose2d(
+                5, 
+                5, 
+                Rotation2d.fromDegrees(0)
+            );
+
+            public static final Pose2d FINAL_WAYPOINT = new Pose2d(
+                5, 
+                5, 
+                Rotation2d.fromDegrees(0)
+            );
+        }
+
+        public static boolean isWithinBounds(Pose2d robotPose, Pair<Translation2d, Translation2d> bounds) {
+            RectangleZone zone = new RectangleZone(
+                "alignment_bounds",
+                bounds.getFirst(),
+                bounds.getSecond()
+            );
+            boolean isWithinBounds = ZoneUtil.isPoseInZone(robotPose, zone, true);
+
+            Logger.recordOutput("AlignmentConstants/isWithinBounds", isWithinBounds);
+            Logger.recordOutput("AlignmentConstants/robotPose", robotPose);
+            return isWithinBounds;
         }
     }
-
-    public static class Depot {
-        public static final Translation2d[] depots = {
-                new Translation2d(Units.inchesToMeters(0.0), Units.inchesToMeters(290.0)),
-                new Translation2d(Units.inchesToMeters(0.0), Units.inchesToMeters(25.0))
-        };
-    }
-
-    public static class Hub {
-        public static final Translation2d hubCenter = new Translation2d(
-                Units.inchesToMeters(182.105),
-                Units.inchesToMeters(158.845));
-
-        public static final double sideLength = Units.inchesToMeters(47.5);
-        public static final double topHeight = Units.inchesToMeters(44.25);
-    }
-
-    public static class AllianceBounds {
-        public static final double blueZoneLineX = Units.inchesToMeters(182.11);
-        public static final double redZoneLineX = Constants.FieldConstants.fieldLength - blueZoneLineX;
-    }
-
-    public static class Bump {
-        public static final double width = Units.inchesToMeters(73.0);
-        public static final double depth = Units.inchesToMeters(44.4);
-        public static final double height = Units.inchesToMeters(6.513);
-    }
-
-    public static class Trench {
-        public static final double armWidth = Units.inchesToMeters(73.0);
-        public static final double armHeight = Units.inchesToMeters(35.0);
-    }
-
-    public static class NeutralZone {
-        public static final double boxWidth = Units.inchesToMeters(206.0);
-        public static final double boxDepth = Units.inchesToMeters(72.0);
-        public static final Translation2d boxCenter =
-            new Translation2d(
-                Constants.FieldConstants.fieldLength / 2.0,
-                Constants.FieldConstants.fieldWidth / 2.0
-            );
-    }
-
-    public static final double aprilTagWidth = Units.inchesToMeters(8.125);
-    public static final int aprilTagCount = 32;
 }

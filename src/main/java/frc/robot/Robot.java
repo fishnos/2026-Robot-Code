@@ -15,7 +15,6 @@ import com.ctre.phoenix6.SignalLogger;
 
 import edu.wpi.first.net.WebServer;
 import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.constants.Constants;
@@ -78,15 +77,6 @@ public class Robot extends LoggedRobot {
             case SIM:
                 // Running a physics simulator, log to NT
                 Logger.addDataReceiver(new NT4Publisher());
-
-                if (Constants.agentMode) {
-                    Logger.addDataReceiver(new WPILOGWriter("agent/logs/"));
-
-                    DriverStationSim.setAutonomous(true);
-                    DriverStationSim.setEnabled(true);
-                    DriverStationSim.notifyNewData();
-                }
-
                 break;     
                           
             case REPLAY:
@@ -169,12 +159,8 @@ public class Robot extends LoggedRobot {
     @Override
     public void autonomousInit() {
         m_robotContainer.autonomousInit();
-        
-        if (Constants.agentMode) {
-            m_autonomousCommand = null;
-        } else {
-            m_autonomousCommand = m_robotContainer.getAutonomousCommand();
-        }
+
+        m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
         // schedule the autonomous command (example)
         if (m_autonomousCommand != null) {

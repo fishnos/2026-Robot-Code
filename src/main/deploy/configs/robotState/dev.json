@@ -1,7 +1,10 @@
 {
+  "poseBufferSizeSeconds": 2.0,
   "odomTranslationDevBase": 0.005,
   "odomRotationDevBase": 0.005,
   "visionTranslationDevBase": 0.02,
   "visionRotationDevBase": 0.02,
-  "maxTiltAngleDegrees": 15.0
+  "gyroResetTimeoutSeconds": 1.0,
+  "gyroResetMaxVisionRotationStdDev": 300.0,
+  "maxTiltAngleDegrees": 5.0
 }

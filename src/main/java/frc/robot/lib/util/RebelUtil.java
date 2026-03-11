@@ -1,11 +1,7 @@
 package frc.robot.lib.util;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import frc.robot.constants.Constants;
-import frc.robot.constants.Constants.FieldConstants;
 
 public class RebelUtil {
     public static final double EPSILON = 1e-12;
@@ -76,23 +72,5 @@ public class RebelUtil {
 
     public static Rotation2d subtractRotations(Rotation2d a, Rotation2d b) {
         return new Rotation2d(Math.min(Math.abs(a.getRadians() - b.getRadians()), Math.PI * 2 - Math.abs(a.getRadians() - b.getRadians())));
-    }
-
-    public static Rotation2d applyFlip(Rotation2d rotation) {
-        return Constants.shouldFlipPath()
-                ? rotation.rotateBy(new Rotation2d(Math.PI))
-                : rotation;
-    }
-
-    public static Translation2d applyFlip(Translation2d translation) {
-        return Constants.shouldFlipPath()
-                ? new Translation2d(
-                        FieldConstants.fieldLength - translation.getX(),
-                        FieldConstants.fieldWidth - translation.getY())
-                : translation;
-    }
-
-    public static Pose2d applyFlip(Pose2d pose) {
-        return new Pose2d(applyFlip(pose.getTranslation()), applyFlip(pose.getRotation()));
     }
 }

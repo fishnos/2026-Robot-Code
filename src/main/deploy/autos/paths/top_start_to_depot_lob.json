@@ -15,7 +15,7 @@
     {
       "type": "event_trigger",
       "t_ratio": 0.0,
-      "lib_key": "drop_intake"
+      "lib_key": "shooting_zone_0_start"
     },
     {
       "type": "event_trigger",

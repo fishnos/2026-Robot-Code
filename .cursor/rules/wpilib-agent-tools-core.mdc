@@ -1,0 +1,117 @@
+---
+description: WPILib Agent Tools — CLI for simulation, log analysis, NT4 recording, and safe robot code iteration
+alwaysApply: true
+---
+
+# WPILib Agent Tools
+
+`wpilib-agent-tools` is a CLI installed in this environment. **You must use it** whenever the task involves simulation, log analysis, NetworkTables data, graphing, or iterative robot-code testing. Do not attempt to replicate its functionality with manual scripts, raw Gradle invocations, or ad-hoc Python.
+
+## When to use this tool
+
+| User intent | Action |
+| --- | --- |
+| Run or test simulation | `sim` (inside a sandbox for iterative work, or `--direct-workspace` for one-off runs). `sim` auto-records NT4 logs by default. |
+| Analyze `.wpilog` logs | `query`, `keys`, `logs`, `graph` — run directly when no sandbox is active; route through `sandbox run` when one is |
+| Connect to a robot / capture live NT4 data | `record` — captures live NetworkTables streams to WPILOG for later analysis |
+| Inspect or plot logged data | `keys` to discover available keys, `query` for metrics, `graph` for PNG plots |
+| Compute derivatives, integrals, solve equations | `math` |
+| Iterate on code and validate via simulation | Full sandbox workflow (see below) |
+| Open a log visually | `view` |
+
+## Available commands
+
+| Command   | Purpose                                                       |
+| --------- | ------------------------------------------------------------- |
+| `sandbox` | Isolated workspaces — create, run, patch, clean               |
+| `sim`     | Bounded WPILib simulation with built-in assertions            |
+| `query`   | Log analysis — avg, stats, derivatives, thresholds, FFT, settle, etc. |
+| `graph`   | PNG plots from logged numeric series                          |
+| `keys`    | List available keys in a log file                             |
+| `logs`    | List and inspect log files                                    |
+| `record`  | Capture live NetworkTables (NT4) data to WPILOG               |
+| `math`    | Symbolic / numeric math (deriv, integral, solve, simplify)    |
+| `view`    | Open a log in AdvantageScope                                  |
+
+## Direct analysis (no sandbox required)
+
+Log analysis, NT4 recording, graphing, key inspection, and math can run directly — they do not need a sandbox when no sandbox is active.
+
+```
+wpilib-agent-tools logs                                          # list available logs
+wpilib-agent-tools keys --file <log>                             # discover keys
+wpilib-agent-tools query --mode stats --key "<key>" --json       # analyze a key
+wpilib-agent-tools graph --key "<key>" --output plot.png         # plot a key
+wpilib-agent-tools record --address <ip> --duration <s>          # capture live NT4 data
+wpilib-agent-tools math --mode deriv --expr "x**3 + x" --var x  # symbolic math
+```
+
+After recording NT4 data, use `query`, `keys`, and `graph` on the resulting WPILOG file to analyze it.
+After `sim`, analyze the newly generated log in `agent/logs` with `keys`, `query`, and `graph`.
+
+**When a sandbox is active**, route `graph`, `query`, `keys`, and other analysis commands through `sandbox run` so that output files (plots, reports) stay inside the sandbox rather than landing in the main workspace. Only write outputs to the workspace if the user explicitly requests it.
+
+## Sandbox workflow (for iterative code changes + simulation)
+
+When the task involves **iterating on code and validating through simulation**, use a sandbox to keep the workspace clean:
+
+1. **Create**: `wpilib-agent-tools sandbox create --name <id> --source workspace`
+2. **Work** inside it:
+   - `wpilib-agent-tools sandbox run --name <id> -- sim --duration <s>`
+   - `wpilib-agent-tools sandbox run --name <id> -- query --mode <mode> --key "<key>"`
+   - `wpilib-agent-tools sandbox run --name <id> -- graph --key "<key>"`
+3. **Export** a patch: `wpilib-agent-tools sandbox patch --name <id> --output <file>`
+4. **Apply** only after **explicit user approval**.
+5. **Clean up**: `wpilib-agent-tools sandbox clean --name <id>`
+
+For straightforward, non-iterative changes a sandbox is optional unless the user requests one.
+
+## Best practices
+
+- Use `--json` for machine-readable output when parsing results programmatically.
+- Keep output bounded — prefer `--summary`, `--max-lines`, `--tail`, and `--limit` over raw dumps.
+- Use `--assert-key` and `--assert-range` on `sim` for pass/fail validation instead of manual log scanning.
+- Use `sim --record-delay 3` (or higher) on the **first** sim run in a session. The NT4 server inside the sim needs time to start; without a delay the recorder may fail to connect and produce no log. If a run fails with a recorder error or `no_log_file_found`, retry with an increased `--record-delay` before investigating other causes.
+- Use `sim --record-address <host>`, `sim --record-delay <sec>`, or `sim --record-output <file>` when NT4 capture needs further tuning; use `--no-record` only when explicitly needed.
+- Define acceptance criteria before simulation; start with the minimum run set and expand only when a check is failing or inconclusive.
+- Prefer targeted key queries before broad scans.
+- Manage running sandbox jobs with `sandbox status` and `sandbox stop --name <id>`.
+- When working in a sandbox, keep all generated artifacts (graphs, reports, logs) inside the sandbox. Run analysis commands via `sandbox run` rather than directly with workspace paths.
+
+## Pre-sim gate: mode and DS state (MUST)
+
+**Before every `sim` run**, you MUST confirm these two things. Treat either as a blocker — do not proceed to sim execution or result analysis until both are satisfied.
+
+### 1. Sim-vs-IRL mode
+
+Check `Constants.java` first, then mode-routing code (mode enums, `RobotContainer` wiring, build flags). The repo **must** be in simulation mode. If it is not, change it before running sim.
+
+### 2. DriverStation auto-enable
+
+You MUST ensure `robotInit()` (or equivalent startup path) forces the correct DS state before the sim loop begins. Make these changes only in a sandbox—they should not be committed to final code. Choose the calls that match the target mode:
+
+```java
+// For autonomous:
+DriverStationSim.setAutonomous(true);
+DriverStationSim.setEnabled(true);
+DriverStationSim.notifyNewData();
+
+// For teleop (default when autonomous is not set):
+DriverStationSim.setEnabled(true);
+DriverStationSim.notifyNewData();
+
+// For test mode:
+DriverStationSim.setTest(true);
+DriverStationSim.setEnabled(true);
+DriverStationSim.notifyNewData();
+```
+
+If these calls are missing or gated behind a condition that won't fire in sim, **add or fix them before running sim**. Missing DS auto-enable means the target mode code never executes, and all downstream assertions will be meaningless.
+
+### Verify after first run
+
+After the first sim run, confirm the DS mode appeared correctly in telemetry (e.g. query for a DriverStation or mode key). If the mode is wrong, fix the DS setup and re-run before analyzing results.
+
+## Discovering more
+
+Run `wpilib-agent-tools --help` or `wpilib-agent-tools <command> --help` for full option details and examples.

@@ -1,13 +1,40 @@
 {
   "cameras": [
     {
-      "name": "limelight",
-      "x": -0.24,
-      "y": 0.0,
-      "z": 0.29,
-      "rollDeg": 1.9,
-      "pitchDeg": 8.0,
-      "yawDeg": 180.0
+      "name": "limelight-fl",
+      "x": 0.071188,
+      "y": 0.36293,
+      "z": 0.50849,
+      "rollDeg": 180,
+      "pitchDeg": 30,
+      "yawDeg": 115
+    },
+    {
+      "name": "limelight-fr",
+      "x": 0.13709,
+      "y": -0.30978,
+      "z": 0.507,
+      "rollDeg": 180,
+      "pitchDeg": 0,
+      "yawDeg": 25
+    },
+    {
+      "name": "limelight-bl",
+      "x": -0.15338,
+      "y": 0.306,
+      "z": 0.50849,
+      "rollDeg": 180,
+      "pitchDeg": 30,
+      "yawDeg": 205
+    },
+    {
+      "name": "limelight-br",
+      "x": -0.071188,
+      "y": -0.36293,
+      "z": 0.50849,
+      "rollDeg": 180,
+      "pitchDeg": 30,
+      "yawDeg": 295
     }
   ],
   "disabledImuMode": 1,
@@ -16,11 +43,11 @@
   "maxZError": 0.13,
   "linearStdDevBaseline": 0.02,
   "angularStdDevBaseline": 0.5,
-  "linearStdDevMegatag1Factor": 999999.0,
+  "linearStdDevMegatag1Factor": 1.8,
   "angularStdDevMegatag1Factor": 1.0,
   "linearStdDevMegatag2Factor": 1.0,
   "angularStdDevMegatag2Factor": 999999.0,
   "maxRotationRateMegatag1DegreesPerSecond": 360.0,
   "maxRotationRateMegatag2DegreesPerSecond": 360.0,
-  "cameraStdDevFactors": [1.0]
+  "cameraStdDevFactors": [1.0, 1.0, 1.0, 1.0]
 }

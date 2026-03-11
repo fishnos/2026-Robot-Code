@@ -1,0 +1,15 @@
+{
+  "shotDurationSeconds": 0.3,
+  "alternatingIntakeToggleSeconds": 1.0,
+  "ballsPerSecond": 9.5,
+  "turretRotationBufferDeg": 20.0,
+  "maxTranslationalVelocityDuringShotMetersPerSec": 2.5,
+  "maxAngularVelocityDuringShotRadPerSec": 3.0,
+  "shotImpactToleranceMeters": 0.3,
+  "lastInRangeShotMaxAgeSeconds": 1.0,
+  "bumpMaxVelocityMetersPerSec": 1.8,
+  "bumpSnapAngleDegrees": 45.0,
+  "passHubBlockerRadiusMeters": 0.12,
+  "latencyCompensationSeconds": 0.0,
+  "ballisticsSimulationStepSeconds": 0.002
+}

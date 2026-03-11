@@ -9,19 +9,25 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.math.numbers.N3;
 
 public class ShooterConfig {
     public static class LerpEntry {
         public double distanceMeters;
-        public double hoodAngleRotations;
+        public double hoodAngleDegrees;
         public double flywheelVelocityRPS;
+        public double flightTimeSeconds;
     }
 
+    public List<LerpEntry> shootingLerpTable;
+    // Backward-compatible alias for older config files.
     public List<LerpEntry> lerpTable;
+    public List<LerpEntry> passLerpTable;
 
     public double minShotDistFromShooterMeters;
     public double maxShotDistFromShooterMeters;
+    public double minPassDistFromShooterMeters;
+    public double maxPassDistFromShooterMeters;
     public double latencyCompensationSeconds;
 
     public String canBusName;
@@ -29,9 +35,6 @@ public class ShooterConfig {
     public int hoodCanId;
     public boolean isHoodInverted;
 
-    public double hoodSupplyCurrentLimit;
-    public double hoodSupplyCurrentLimitLowerTime;
-    public double hoodSupplyCurrentLimitLowerLimit;
     public double hoodStatorCurrentLimit;
     public double hoodPeakForwardTorqueCurrent;
     public double hoodPeakReverseTorqueCurrent;
@@ -45,16 +48,13 @@ public class ShooterConfig {
 
     public double hoodMotorToOutputShaftRatio;
 
-    public double hoodStartingAngleRotations;
-    public double hoodMinAngleRotations;
-    public double hoodMaxAngleRotations;
+    public double hoodStartingAngleDegrees;
+    public double hoodMinAngleDegrees;
+    public double hoodMaxAngleDegrees;
 
     public int turretCanId;
     public boolean isTurretInverted;
 
-    public double turretSupplyCurrentLimit;
-    public double turretSupplyCurrentLimitLowerTime;
-    public double turretSupplyCurrentLimitLowerLimit;
     public double turretStatorCurrentLimit;
     public double turretPeakForwardTorqueCurrent;
     public double turretPeakReverseTorqueCurrent;
@@ -80,9 +80,6 @@ public class ShooterConfig {
     public boolean isFlywheelInverted;
     public boolean isFlywheelFollowerOppositeDirection;
 
-    public double flywheelSupplyCurrentLimit;
-    public double flywheelSupplyCurrentLimitLowerTime;
-    public double flywheelSupplyCurrentLimitLowerLimit;
     public double flywheelStatorCurrentLimit;
     public double flywheelPeakForwardTorqueCurrent;
     public double flywheelPeakReverseTorqueCurrent;
@@ -96,6 +93,8 @@ public class ShooterConfig {
 
     public double flywheelMotorToOutputShaftRatio;
     public double flywheelRadiusMeters;
+    public double backRollerGearRatio;
+    public double backRollerRadiusMeters;
 
     public double shooterPoseX;
     public double shooterPoseY;
@@ -104,19 +103,35 @@ public class ShooterConfig {
     public double shooterPosePitchDeg;
     public double shooterPoseYawDeg;
 
-    public double hoodAngleToleranceRotations;
+    public double hoodAngleToleranceDegrees;
     public double turretAngleToleranceRotations;
     public double flywheelVelocityToleranceRPS;
 
-    public InterpolatingMatrixTreeMap<Double, N2, N1> getLerpTable() {
-        InterpolatingMatrixTreeMap<Double, N2, N1> table = new InterpolatingMatrixTreeMap<>();
-        if (lerpTable == null) {
+    public InterpolatingMatrixTreeMap<Double, N3, N1> getLerpTable() {
+        return buildLerpTable(getShootingLerpEntries());
+    }
+
+    public InterpolatingMatrixTreeMap<Double, N3, N1> getPassLerpTable() {
+        return buildLerpTable(passLerpTable);
+    }
+
+    public List<LerpEntry> getShootingLerpEntries() {
+        if (shootingLerpTable != null && !shootingLerpTable.isEmpty()) {
+            return shootingLerpTable;
+        }
+        return lerpTable;
+    }
+
+    private InterpolatingMatrixTreeMap<Double, N3, N1> buildLerpTable(List<LerpEntry> entries) {
+        InterpolatingMatrixTreeMap<Double, N3, N1> table = new InterpolatingMatrixTreeMap<>();
+        if (entries == null) {
             return table;
         }
-        for (LerpEntry entry : lerpTable) {
-            table.put(entry.distanceMeters, new Matrix<N2, N1>(Nat.N2(), Nat.N1(), new double[]{
-                entry.hoodAngleRotations,
-                entry.flywheelVelocityRPS
+        for (LerpEntry entry : entries) {
+            table.put(entry.distanceMeters, new Matrix<N3, N1>(Nat.N3(), Nat.N1(), new double[]{
+                entry.hoodAngleDegrees,
+                entry.flywheelVelocityRPS,
+                entry.flightTimeSeconds
             }));
         }
         return table;

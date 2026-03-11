@@ -22,6 +22,7 @@ public class ClimberIOSim implements ClimberIO {
     private ProfiledPIDController climberFeedback;
 
     private boolean isClimberClosedLoop = true;
+    private boolean isClimberEStopped = false;
 
     private double lastTimeInputs = Timer.getTimestamp();
 
@@ -47,7 +48,9 @@ public class ClimberIOSim implements ClimberIO {
         double dt = Timer.getTimestamp() - lastTimeInputs;
         lastTimeInputs = Timer.getTimestamp();
 
-        if (isClimberClosedLoop) {
+        if (isClimberEStopped) {
+            climberSim.setInputVoltage(0);
+        } else if (isClimberClosedLoop) {
             climberSim.setInputVoltage(
                 MathUtil.clamp(
                     climberFeedback.calculate(climberSim.getAngularPositionRad()),
@@ -68,6 +71,11 @@ public class ClimberIOSim implements ClimberIO {
 
     @Override
     public void setPosition(double positionRotations) {
+        if (isClimberEStopped) {
+            climberSim.setInputVoltage(0);
+            isClimberClosedLoop = false;
+            return;
+        }
         double clampedPosition = MathUtil.clamp(positionRotations,
             config.climberMinPositionRotations,
             config.climberMaxPositionRotations);
@@ -77,7 +85,7 @@ public class ClimberIOSim implements ClimberIO {
 
     @Override
     public void setVoltage(double voltage) {
-        climberSim.setInputVoltage(voltage);
+        climberSim.setInputVoltage(isClimberEStopped ? 0 : voltage);
         isClimberClosedLoop = false;
     }
 
@@ -86,5 +94,17 @@ public class ClimberIOSim implements ClimberIO {
         climberFeedback.setP(config.kP());
         climberFeedback.setI(config.kI());
         climberFeedback.setD(config.kD());
+    }
+
+    @Override
+    public void enableEStop() {
+        isClimberEStopped = true;
+        climberSim.setInputVoltage(0);
+        isClimberClosedLoop = false;
+    }
+
+    @Override
+    public void disableEStop() {
+        isClimberEStopped = false;
     }
 }
