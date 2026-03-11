@@ -73,16 +73,23 @@ public class RobotContainer {
         this.xboxOperator = new XboxController(2);
         this.xboxDriver = new XboxController(3);
 
-        // Configure teleop input suppliers for SwerveDrive FSM
-        // Using normalized inputs (-1 to 1) with deadband applied
-        swerveDrive.setTeleopInputSuppliers(
+        // Configure field-relative teleop input suppliers for SwerveDrive FSM.
+        swerveDrive.setFieldRelativeTeleopInputSuppliers(
             () -> -MathUtil.applyDeadband(xboxDriver.getLeftY(), Constants.OperatorConstants.LEFT_Y_DEADBAND),
             () -> -MathUtil.applyDeadband(xboxDriver.getLeftX(), Constants.OperatorConstants.LEFT_X_DEADBAND),
             () -> -MathUtil.applyDeadband(xboxDriver.getRightX(), Constants.OperatorConstants.RIGHT_X_DEADBAND)
         );
 
-        // Set default state to TELEOP
-        swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELEOP);
+        // Configure robot-relative teleop input suppliers for SwerveDrive FSM.
+        swerveDrive.setRobotRelativeTeleopInputSuppliers(
+            () -> -MathUtil.applyDeadband(xboxDriver.getLeftY(), Constants.OperatorConstants.LEFT_Y_DEADBAND),
+            () -> -MathUtil.applyDeadband(xboxDriver.getLeftX(), Constants.OperatorConstants.LEFT_X_DEADBAND),
+            () -> -MathUtil.applyDeadband(xboxDriver.getRightX(), Constants.OperatorConstants.RIGHT_X_DEADBAND)
+        );
+        swerveDrive.setRobotRelativeTeleopHeadingOffset(Rotation2d.fromDegrees(25.0));
+
+        // Default teleop drive mode is field-relative.
+        swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELOP_FIELD_RELATIVE);
         superstructure.setDesiredTargetState(TargetState.HUB);
         
         // Set default superstructure state to HOME
@@ -107,6 +114,10 @@ public class RobotContainer {
     }
 
     private void configureBindings() {
+        xboxDriver.getXButton().onTrue(
+            new InstantCommand(swerveDrive::toggleTeleopDriveMode)
+        );
+
         // xboxDriver.getXButton().onTrue(
         //     new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
         // );
@@ -219,7 +230,7 @@ public class RobotContainer {
 
     public void teleopInit() {
         // Ensure we're in teleop state
-        swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELEOP);
+        swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELOP_FIELD_RELATIVE);
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
         superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
     }

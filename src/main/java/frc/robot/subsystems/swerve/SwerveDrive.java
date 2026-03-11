@@ -18,6 +18,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -64,7 +65,8 @@ public class SwerveDrive extends SubsystemBase {
     public enum DesiredSystemState {
         DISABLED,
         IDLE,
-        TELEOP,
+        TELOP_FIELD_RELATIVE,
+        TELOP_ROBOT_RELATIVE,
         FOLLOW_PATH,
         PREPARE_FOR_AUTO,
         SYSID
@@ -73,7 +75,8 @@ public class SwerveDrive extends SubsystemBase {
     public enum CurrentSystemState {
         DISABLED,
         IDLE,
-        TELEOP,
+        TELOP_FIELD_RELATIVE,
+        TELOP_ROBOT_RELATIVE,
         FOLLOW_PATH,
         PREPARE_FOR_AUTO,
         READY_FOR_AUTO,
@@ -126,9 +129,13 @@ public class SwerveDrive extends SubsystemBase {
     private CurrentTranslationOverrideState previousTranslationOverrideState = CurrentTranslationOverrideState.NONE;
 
     // Teleop input suppliers (normalized -1 to 1)
-    private DoubleSupplier vxNormalizedSupplier = () -> 0.0;
-    private DoubleSupplier vyNormalizedSupplier = () -> 0.0;
-    private DoubleSupplier omegaNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier fieldRelativeVxNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier fieldRelativeVyNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier fieldRelativeOmegaNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier robotRelativeVxNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier robotRelativeVyNormalizedSupplier = () -> 0.0;
+    private DoubleSupplier robotRelativeOmegaNormalizedSupplier = () -> 0.0;
+    private Rotation2d robotRelativeTeleopHeadingOffset = new Rotation2d();
 
     // Path following
     private Path currentPath = null;
@@ -503,8 +510,11 @@ public class SwerveDrive extends SubsystemBase {
             case IDLE:
                 currentSystemState = CurrentSystemState.IDLE;
                 break;
-            case TELEOP:
-                currentSystemState = CurrentSystemState.TELEOP;
+            case TELOP_FIELD_RELATIVE:
+                currentSystemState = CurrentSystemState.TELOP_FIELD_RELATIVE;
+                break;
+            case TELOP_ROBOT_RELATIVE:
+                currentSystemState = CurrentSystemState.TELOP_ROBOT_RELATIVE;
                 break;
 
             case FOLLOW_PATH:
@@ -579,8 +589,11 @@ public class SwerveDrive extends SubsystemBase {
             case IDLE:
                 handleIdleSystemState();
                 break;
-            case TELEOP:
-                handleTeleopSystemState();
+            case TELOP_FIELD_RELATIVE:
+                handleFieldRelativeTeleopSystemState();
+                break;
+            case TELOP_ROBOT_RELATIVE:
+                handleRobotRelativeTeleopSystemState();
                 break;
             case FOLLOW_PATH:
                 handleFollowPathSystemState();
@@ -665,19 +678,36 @@ public class SwerveDrive extends SubsystemBase {
         previousSystemState = CurrentSystemState.IDLE;
     }
 
-    private void handleTeleopSystemState() {
+    private void handleFieldRelativeTeleopSystemState() {
         cancelPathCommand();
 
         invert = Constants.shouldFlipPath() ? -1 : 1;
 
         ChassisSpeeds desiredFieldRelativeSpeeds = new ChassisSpeeds(
-            vxNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec * invert,
-            vyNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec * invert,
-            omegaNormalizedSupplier.getAsDouble() * drivetrainConfig.maxAngularVelocityRadiansPerSec
+            fieldRelativeVxNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec * invert,
+            fieldRelativeVyNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec * invert,
+            fieldRelativeOmegaNormalizedSupplier.getAsDouble() * drivetrainConfig.maxAngularVelocityRadiansPerSec
         );
         driveFieldRelative(desiredFieldRelativeSpeeds);
 
-        previousSystemState = CurrentSystemState.TELEOP;
+        previousSystemState = CurrentSystemState.TELOP_FIELD_RELATIVE;
+    }
+
+    private void handleRobotRelativeTeleopSystemState() {
+        cancelPathCommand();
+
+        ChassisSpeeds desiredRobotRelativeSpeeds = new ChassisSpeeds(
+            robotRelativeVxNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec,
+            robotRelativeVyNormalizedSupplier.getAsDouble() * drivetrainConfig.maxTranslationalVelocityMetersPerSec,
+            robotRelativeOmegaNormalizedSupplier.getAsDouble() * drivetrainConfig.maxAngularVelocityRadiansPerSec
+        );
+        desiredRobotRelativeSpeeds = applyRobotRelativeTeleopHeadingOffset(
+            desiredRobotRelativeSpeeds,
+            robotRelativeTeleopHeadingOffset
+        );
+        driveRobotRelative(desiredRobotRelativeSpeeds);
+
+        previousSystemState = CurrentSystemState.TELOP_ROBOT_RELATIVE;
     }
 
     private void handleFollowPathSystemState() {
@@ -1165,14 +1195,28 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     // Supplier setters
-    public void setTeleopInputSuppliers(
+    public void setFieldRelativeTeleopInputSuppliers(
         DoubleSupplier vxNormalized,
         DoubleSupplier vyNormalized,
         DoubleSupplier omegaNormalized
     ) {
-        this.vxNormalizedSupplier = vxNormalized;
-        this.vyNormalizedSupplier = vyNormalized;
-        this.omegaNormalizedSupplier = omegaNormalized;
+        this.fieldRelativeVxNormalizedSupplier = vxNormalized;
+        this.fieldRelativeVyNormalizedSupplier = vyNormalized;
+        this.fieldRelativeOmegaNormalizedSupplier = omegaNormalized;
+    }
+
+    public void setRobotRelativeTeleopInputSuppliers(
+        DoubleSupplier vxNormalized,
+        DoubleSupplier vyNormalized,
+        DoubleSupplier omegaNormalized
+    ) {
+        this.robotRelativeVxNormalizedSupplier = vxNormalized;
+        this.robotRelativeVyNormalizedSupplier = vyNormalized;
+        this.robotRelativeOmegaNormalizedSupplier = omegaNormalized;
+    }
+
+    public void setRobotRelativeTeleopHeadingOffset(Rotation2d headingOffset) {
+        this.robotRelativeTeleopHeadingOffset = headingOffset != null ? headingOffset : new Rotation2d();
     }
 
     public void setCurrentPath(Path path) {
@@ -1469,6 +1513,41 @@ public class SwerveDrive extends SubsystemBase {
 
     public void setDesiredSystemState(DesiredSystemState desiredState) {
         this.desiredSystemState = desiredState;
+    }
+
+    public void toggleTeleopDriveMode() {
+        desiredSystemState = toggleTeleopDriveMode(desiredSystemState);
+    }
+
+    @AutoLogOutput(key = "SwerveDrive/robotRelativeTeleopHeadingOffsetDeg")
+    public double getRobotRelativeTeleopHeadingOffsetDegrees() {
+        return robotRelativeTeleopHeadingOffset.getDegrees();
+    }
+
+    static DesiredSystemState toggleTeleopDriveMode(DesiredSystemState desiredState) {
+        switch (desiredState) {
+            case TELOP_FIELD_RELATIVE:
+                return DesiredSystemState.TELOP_ROBOT_RELATIVE;
+            case TELOP_ROBOT_RELATIVE:
+                return DesiredSystemState.TELOP_FIELD_RELATIVE;
+            default:
+                return desiredState;
+        }
+    }
+
+    static ChassisSpeeds applyRobotRelativeTeleopHeadingOffset(
+        ChassisSpeeds speeds,
+        Rotation2d headingOffset
+    ) {
+        Translation2d rotatedTranslation = new Translation2d(
+            speeds.vxMetersPerSecond,
+            speeds.vyMetersPerSecond
+        ).rotateBy(headingOffset);
+        return new ChassisSpeeds(
+            rotatedTranslation.getX(),
+            rotatedTranslation.getY(),
+            speeds.omegaRadiansPerSecond
+        );
     }
 
     // Omega Override State getters/setters

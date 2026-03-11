@@ -6,7 +6,60 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+
 class SwerveDriveRangedRotationTest {
+    @Test
+    void toggleTeleopDriveMode_flipsFieldRelativeToRobotRelative() {
+        SwerveDrive.DesiredSystemState toggled = SwerveDrive.toggleTeleopDriveMode(
+            SwerveDrive.DesiredSystemState.TELOP_FIELD_RELATIVE
+        );
+
+        assertEquals(SwerveDrive.DesiredSystemState.TELOP_ROBOT_RELATIVE, toggled);
+    }
+
+    @Test
+    void toggleTeleopDriveMode_flipsRobotRelativeToFieldRelative() {
+        SwerveDrive.DesiredSystemState toggled = SwerveDrive.toggleTeleopDriveMode(
+            SwerveDrive.DesiredSystemState.TELOP_ROBOT_RELATIVE
+        );
+
+        assertEquals(SwerveDrive.DesiredSystemState.TELOP_FIELD_RELATIVE, toggled);
+    }
+
+    @Test
+    void toggleTeleopDriveMode_leavesNonTeleopStatesUnchanged() {
+        SwerveDrive.DesiredSystemState toggled = SwerveDrive.toggleTeleopDriveMode(
+            SwerveDrive.DesiredSystemState.FOLLOW_PATH
+        );
+
+        assertEquals(SwerveDrive.DesiredSystemState.FOLLOW_PATH, toggled);
+    }
+
+    @Test
+    void applyRobotRelativeTeleopHeadingOffset_rotatesTranslationCounterClockwise() {
+        ChassisSpeeds rotatedSpeeds = SwerveDrive.applyRobotRelativeTeleopHeadingOffset(
+            new ChassisSpeeds(1.0, 0.0, 2.0),
+            edu.wpi.first.math.geometry.Rotation2d.fromDegrees(25.0)
+        );
+
+        assertEquals(Math.cos(Math.toRadians(25.0)), rotatedSpeeds.vxMetersPerSecond, 1e-9);
+        assertEquals(Math.sin(Math.toRadians(25.0)), rotatedSpeeds.vyMetersPerSecond, 1e-9);
+        assertEquals(2.0, rotatedSpeeds.omegaRadiansPerSecond, 1e-9);
+    }
+
+    @Test
+    void applyRobotRelativeTeleopHeadingOffset_preservesSpeedsWhenOffsetIsZero() {
+        ChassisSpeeds rotatedSpeeds = SwerveDrive.applyRobotRelativeTeleopHeadingOffset(
+            new ChassisSpeeds(0.5, -0.25, 1.0),
+            new edu.wpi.first.math.geometry.Rotation2d()
+        );
+
+        assertEquals(0.5, rotatedSpeeds.vxMetersPerSecond, 1e-9);
+        assertEquals(-0.25, rotatedSpeeds.vyMetersPerSecond, 1e-9);
+        assertEquals(1.0, rotatedSpeeds.omegaRadiansPerSecond, 1e-9);
+    }
+
     @Test
     void resolveRangedRotationState_staysReturningUntilInsideNominalBuffer() {
         SwerveDrive.CurrentOmegaOverrideState state = SwerveDrive.resolveRangedRotationState(
