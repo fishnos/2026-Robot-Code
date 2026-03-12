@@ -11,6 +11,7 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
@@ -37,6 +38,8 @@ import frc.robot.subsystems.vision.Vision;
 
 //: TODO: make sure all lisences in tuner are activated
 public class RobotContainer {
+    private static final double DRIVE_HELPER_TRIGGER_THRESHOLD = 0.5;
+
     public static RobotContainer instance = null;
 
     public static RobotContainer getInstance() {
@@ -57,6 +60,8 @@ public class RobotContainer {
     private final Hopper hopper = Hopper.getInstance();
     private final Intake intake = Intake.getInstance();
     private final Superstructure superstructure = Superstructure.getInstance();
+    private Superstructure.DesiredIntakeState competitionDriveIntakeReleaseState =
+        Superstructure.DesiredIntakeState.DEPLOYED;
 
     LoggedNetworkNumber shooterFlywheelSet = new LoggedNetworkNumber("flywheelSet", 0);
     LoggedNetworkNumber turret = new LoggedNetworkNumber("turretSet", 180);
@@ -114,9 +119,7 @@ public class RobotContainer {
     }
 
     private void configureBindings() {
-        xboxDriver.getXButton().onTrue(
-            new InstantCommand(swerveDrive::toggleTeleopDriveMode)
-        );
+        bindCompetitionDriveHelpers();
 
         // xboxDriver.getXButton().onTrue(
         //     new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
@@ -137,22 +140,6 @@ public class RobotContainer {
         //         new InstantCommand(() -> Hopper.getInstance().setSetpoint(HopperSetpoint.OFF))
         //     )
         // );
-
-        Trigger getRightBumper = new Trigger(() -> xboxDriver.getRightTrigger() > 0.5);
-        getRightBumper.onTrue(
-            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING))
-        );
-        getRightBumper.onFalse(
-            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME))
-        );
-
-        Trigger getLeftBumper = new Trigger(() -> xboxDriver.getLeftTrigger() > 0.5);
-        getLeftBumper.onTrue(
-            new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.INTAKING))
-        );
-        getLeftBumper.onFalse(
-            new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.DEPLOYED))
-        );
 
         // xboxDriver.getBButton().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING))
@@ -214,6 +201,82 @@ public class RobotContainer {
         // xboxDriver.getAButton().onFalse(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
     }
 
+    private void bindCompetitionDriveHelpers() {
+        xboxDriver.getRightTriggerButton(DRIVE_HELPER_TRIGGER_THRESHOLD).whileTrue(
+            new RunCommand(this::runHubShotHelper)
+        ).onFalse(
+            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING))
+        );
+
+        xboxDriver.getLeftTriggerButton(DRIVE_HELPER_TRIGGER_THRESHOLD).whileTrue(
+            new RunCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.INTAKING))
+        ).onFalse(
+            new InstantCommand(this::restoreCompetitionDriveIntakeState)
+        );
+
+        xboxDriver.getLeftBumper().onTrue(
+            new InstantCommand(() -> setCompetitionDriveIntakeReleaseState(
+                Superstructure.DesiredIntakeState.ALTERNATING
+            ))
+        );
+
+        xboxDriver.getRightBumper().whileTrue(
+            new RunCommand(this::runClimbAlignmentHelper)
+        ).onFalse(
+            new InstantCommand(this::releaseClimbAlignmentHelper)
+        );
+
+        xboxDriver.getXButton().onTrue(
+            new InstantCommand(swerveDrive::toggleTeleopDriveMode)
+        );
+
+        xboxDriver.getBButton().whileTrue(
+            new RunCommand(this::runAlliancePassHelper)
+        ).onFalse(
+            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING))
+        );
+
+        xboxDriver.getYButton().onTrue(
+            new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.REVERSING))
+        ).onFalse(
+            new InstantCommand(this::restoreCompetitionDriveIntakeState)
+        );
+    }
+
+    private void runHubShotHelper() {
+        superstructure.setDesiredTargetState(TargetState.HUB);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
+    }
+
+    private void runAlliancePassHelper() {
+        superstructure.getClosestLineOfSightAlliancePassTarget().ifPresentOrElse(
+            targetState -> {
+                superstructure.setDesiredTargetState(targetState);
+                superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
+            },
+            () -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)
+        );
+    }
+
+    private void runClimbAlignmentHelper() {
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.EXTENDED);
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.BUMP);
+    }
+
+    private void releaseClimbAlignmentHelper() {
+        superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
+        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.CLIMBED);
+    }
+
+    private void setCompetitionDriveIntakeReleaseState(Superstructure.DesiredIntakeState intakeState) {
+        competitionDriveIntakeReleaseState = intakeState;
+        superstructure.setDesiredIntakeState(intakeState);
+    }
+
+    private void restoreCompetitionDriveIntakeState() {
+        superstructure.setDesiredIntakeState(competitionDriveIntakeReleaseState);
+    }
+
     private Command followPath(Path path, boolean shouldResetPose) {
         return 
             new InstantCommand(() -> {
@@ -230,9 +293,11 @@ public class RobotContainer {
 
     public void teleopInit() {
         // Ensure we're in teleop state
+        competitionDriveIntakeReleaseState = Superstructure.DesiredIntakeState.DEPLOYED;
         swerveDrive.setDesiredSystemState(SwerveDrive.DesiredSystemState.TELOP_FIELD_RELATIVE);
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME);
-        superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
+        superstructure.setDesiredIntakeState(competitionDriveIntakeReleaseState);
+        // dont set climb state leave up to driver
     }
 
     public void autonomousInit() {
