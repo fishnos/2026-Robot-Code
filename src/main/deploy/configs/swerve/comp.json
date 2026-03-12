@@ -35,7 +35,7 @@
     "followPathCrossTrackKD": 0.0
   },
   "gyro": {
-    "canId": 2,
+    "canId": 14,
     "canBusName": "drivetrain",
     "mountPoseYaw": -90.022,
     "mountPosePitch": -0.6564,
@@ -56,7 +56,7 @@
     "driveMaxVelocityMetersPerSec": 4.5,
     "isDriveNeutralModeBrake": true,
     "driveMotorToOutputShaftRatio": 6.12,
-    "driveWheelRadiusMeters": 0.04856143856,
+    "driveWheelRadiusMeters": 0.049,
     "steerStatorCurrentLimit": 80.0,
     "steerPeakForwardTorqueCurrent": 80.0,
     "steerPeakReverseTorqueCurrent": -80.0,
@@ -76,43 +76,43 @@
     "driveMaxWallVeloMetersPerSec": 0.02
   },
   "frontLeft": {
-    "driveCanId": 5,
+    "driveCanId": 2,
     "steerCanId": 3,
     "isDriveInverted": true,
     "isSteerInverted": true,
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 4,
-    "cancoderOffsetRotations": -0.0488
+    "cancoderOffsetRotations": 0.0
   },
   "frontRight": {
-    "driveCanId": 8,
+    "driveCanId": 5,
     "steerCanId": 6,
     "isDriveInverted": true,
     "isSteerInverted": true,
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 7,
-    "cancoderOffsetRotations": -0.7319
+    "cancoderOffsetRotations": 0.0
   },
   "backLeft": {
-    "driveCanId": 14,
-    "steerCanId": 12,
-    "isDriveInverted": true,
-    "isSteerInverted": true,
-    "isDriveNeutralModeBrake": true,
-    "isSteerNeutralModeBrake": true,
-    "cancoderCanId": 13,
-    "cancoderOffsetRotations": 0.382
-  },
-  "backRight": {
-    "driveCanId": 11,
+    "driveCanId": 8,
     "steerCanId": 9,
     "isDriveInverted": true,
     "isSteerInverted": true,
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 10,
-    "cancoderOffsetRotations": 0.0688
+    "cancoderOffsetRotations": 0.0
+  },
+  "backRight": {
+    "driveCanId": 11,
+    "steerCanId": 12,
+    "isDriveInverted": true,
+    "isSteerInverted": true,
+    "isDriveNeutralModeBrake": true,
+    "isSteerNeutralModeBrake": true,
+    "cancoderCanId": 13,
+    "cancoderOffsetRotations": 0.0
   }
 }
