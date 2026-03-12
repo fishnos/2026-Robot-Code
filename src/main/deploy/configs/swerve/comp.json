@@ -8,7 +8,7 @@
     "frontLeftX": 0.26,
     "frontLeftY": 0.325,
     "frontRightX": 0.26,
-    "frontRightY": -0.325,
+    "frontRightY": -0.325,  
     "backLeftX": -0.26,
     "backLeftY": 0.325,
     "backRightX": -0.26,
@@ -55,7 +55,7 @@
     "driveKD": 0.0,
     "driveMaxVelocityMetersPerSec": 4.5,
     "isDriveNeutralModeBrake": true,
-    "driveMotorToOutputShaftRatio": 6.12,
+    "driveMotorToOutputShaftRatio": 6.03,
     "driveWheelRadiusMeters": 0.049,
     "steerStatorCurrentLimit": 80.0,
     "steerPeakForwardTorqueCurrent": 80.0,
@@ -67,8 +67,8 @@
     "steerKI": 0.0,
     "steerKD": 0.50,
     "isSteerNeutralModeBrake": true,
-    "steerMotorToOutputShaftRatio": 21.428,
-    "steerRotorToSensorRatio": 21.428,
+    "steerMotorToOutputShaftRatio": 26.09,
+    "steerRotorToSensorRatio": 26.09,
     "steerCancoderFeedbackSensorSource": "FusedCANcoder",
     "cancoderSensorDirection": "CounterClockwise_Positive",
     "cancoderAbsoluteSensorDiscontinuityPoint": 0.5,
@@ -83,7 +83,7 @@
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 4,
-    "cancoderOffsetRotations": 0.0
+    "cancoderOffsetRotations": 1.5
   },
   "frontRight": {
     "driveCanId": 5,
@@ -93,7 +93,7 @@
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 7,
-    "cancoderOffsetRotations": 0.0
+    "cancoderOffsetRotations": -0.3569
   },
   "backLeft": {
     "driveCanId": 8,
@@ -103,7 +103,7 @@
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 10,
-    "cancoderOffsetRotations": 0.0
+    "cancoderOffsetRotations": 0.52685
   },
   "backRight": {
     "driveCanId": 11,
@@ -113,6 +113,6 @@
     "isDriveNeutralModeBrake": true,
     "isSteerNeutralModeBrake": true,
     "cancoderCanId": 13,
-    "cancoderOffsetRotations": 0.0
+    "cancoderOffsetRotations": -0.453125
   }
 }
