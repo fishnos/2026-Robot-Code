@@ -487,9 +487,9 @@ public class SwerveDrive extends SubsystemBase {
 
         if (Constants.VERBOSE_LOGGING_ENABLED && updatedPoses != null) {
             Logger.recordOutput("SwerveDrive/updatedPoses", updatedPoses.toArray(new Pose2d[0]));
-            Logger.recordOutput("SwerveDrive/measuredModuleStates", moduleStates);
-            Logger.recordOutput("SwerveDrive/measuredModulePositions", modulePositions);
         }
+        Logger.recordOutput("SwerveDrive/measuredModuleStates", moduleStates);
+        Logger.recordOutput("SwerveDrive/measuredModulePositions", modulePositions);
 
         // FSM processing
         handleStateTransitions();
