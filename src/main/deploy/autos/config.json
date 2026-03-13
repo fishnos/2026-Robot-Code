@@ -6,9 +6,9 @@
     },
     "protrusions": {
       "enabled": true,
-      "distance_meters": 0.2222,
+      "distance_meters": 0.3,
       "side": "front",
-      "default_state": "hidden",
+      "default_state": "shown",
       "show_on_event_keys": [
         "start_intake"
       ],
@@ -19,7 +19,7 @@
   },
   "kinematic_constraints": {
     "default_max_velocity_meters_per_sec": 4.5,
-    "default_max_acceleration_meters_per_sec2": 14.0,
+    "default_max_acceleration_meters_per_sec2": 12.0,
     "default_intermediate_handoff_radius_meters": 0.25,
     "default_max_velocity_deg_per_sec": 600.0,
     "default_max_acceleration_deg_per_sec2": 2000.0,

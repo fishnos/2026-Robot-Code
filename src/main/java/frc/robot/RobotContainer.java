@@ -8,7 +8,10 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -16,7 +19,10 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.AutoClimbCommand;
+import frc.robot.commands.autos.Autos;
 import frc.robot.constants.AlignmentConstants;
+import frc.robot.constants.ClimbingConstants;
 // import frc.robot.commands.autos.tower.ScoreL1;
 import frc.robot.constants.Constants;
 import frc.robot.lib.BLine.FollowPath;
@@ -60,6 +66,7 @@ public class RobotContainer {
     private final Hopper hopper = Hopper.getInstance();
     private final Intake intake = Intake.getInstance();
     private final Superstructure superstructure = Superstructure.getInstance();
+    private final SendableChooser<Command> autoChooser;
     private Superstructure.DesiredIntakeState competitionDriveIntakeReleaseState =
         Superstructure.DesiredIntakeState.DEPLOYED;
 
@@ -102,6 +109,9 @@ public class RobotContainer {
         superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.STOWED);
         superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
 
+        autoChooser = Autos.createChooser(swerveDrive, superstructure);
+        SmartDashboard.putData("Auto Chooser", autoChooser);
+
         // superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_TOP);
 
         
@@ -116,11 +126,17 @@ public class RobotContainer {
         FollowPath.registerEventTrigger("shoot", () -> {
             superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
         });
+        FollowPath.registerEventTrigger("intake", () -> {
+            superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.INTAKING);
+        });
+        FollowPath.registerEventTrigger("deploy_intake", () -> {
+            superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.DEPLOYED);
+        });
     }
 
     private void configureBindings() {
-        bindCompetitionDriveHelpers();
-
+        // bindCompetitionDriveHelpers();
+        this.xboxDriver.getAButton().onTrue(new AutoClimbCommand(ClimbingConstants.TOWER));
         // xboxDriver.getXButton().onTrue(
         //     new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
         // );
@@ -279,20 +295,6 @@ public class RobotContainer {
         superstructure.setDesiredIntakeState(competitionDriveIntakeReleaseState);
     }
 
-    private Command followPath(Path path, boolean shouldResetPose) {
-        return 
-            new InstantCommand(() -> {
-                swerveDrive.setCurrentPath(path, shouldResetPose);
-            })
-            .andThen(setSwerveDriveState(SwerveDrive.DesiredSystemState.FOLLOW_PATH)).
-            andThen(new WaitUntilCommand(
-                () -> swerveDrive.getCurrentSystemState() == SwerveDrive.CurrentSystemState.IDLE));
-    }
-
-    private Command setSwerveDriveState(SwerveDrive.DesiredSystemState state) {
-        return new InstantCommand(() -> swerveDrive.setDesiredSystemState(state));
-    }
-
     public void teleopInit() {
         // Ensure we're in teleop state
         competitionDriveIntakeReleaseState = Superstructure.DesiredIntakeState.DEPLOYED;
@@ -316,8 +318,7 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return followPath(new Path("outpost"), false).andThen(new WaitCommand(8.0)).andThen(followPath(new Path("outpost_to_tower"), false))
-        .andThen(new WaitCommand(3.0)).andThen(new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.HOME)));
-        // return null;
+        Command selectedAuto = autoChooser.getSelected();
+        return selectedAuto != null ? selectedAuto : Commands.none();
     }
 }
