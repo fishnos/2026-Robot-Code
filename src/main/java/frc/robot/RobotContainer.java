@@ -203,7 +203,7 @@ public class RobotContainer {
 
     private void bindCompetitionDriveHelpers() {
         xboxDriver.getRightTriggerButton(DRIVE_HELPER_TRIGGER_THRESHOLD).whileTrue(
-            new RunCommand(this::runHubShotHelper)
+            new RunCommand(this::runHubShootingHelper)
         ).onFalse(
             new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING))
         );
@@ -228,6 +228,8 @@ public class RobotContainer {
 
         xboxDriver.getXButton().onTrue(
             new InstantCommand(swerveDrive::toggleTeleopDriveMode)
+        ).onFalse(
+            new InstantCommand(swerveDrive::toggleTeleopDriveMode)    
         );
 
         xboxDriver.getBButton().whileTrue(
@@ -243,7 +245,7 @@ public class RobotContainer {
         );
     }
 
-    private void runHubShotHelper() {
+    private void runHubShootingHelper() {
         superstructure.setDesiredTargetState(TargetState.HUB);
         superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING);
     }
