@@ -132,6 +132,7 @@ public class Superstructure extends SubsystemBase {
 
     private DesiredSystemState desiredSystemState = DesiredSystemState.DISABLED;
     private CurrentSystemState currentSystemState = CurrentSystemState.DISABLED;
+    private CurrentSystemState lastStateBeforePreparingForShot = CurrentSystemState.DISABLED;
     private DesiredIntakeState desiredIntakeState = DesiredIntakeState.STOWED;
     private CurrentIntakeState currentIntakeState = CurrentIntakeState.DISABLED;
     private DesiredClimbState desiredClimbState = DesiredClimbState.RETRACTED;
@@ -307,54 +308,54 @@ public class Superstructure extends SubsystemBase {
             return; // If we're shooting, don't transition to another state until the shot is complete to prevent jitter
         }
 
+        CurrentSystemState nextSystemState = currentSystemState;
+
         switch (desiredSystemState) {
             case DISABLED:
-                currentSystemState = CurrentSystemState.DISABLED;
+                nextSystemState = CurrentSystemState.DISABLED;
                 break;
 
             case HOME:
-                currentSystemState = CurrentSystemState.HOME;
+                nextSystemState = CurrentSystemState.HOME;
                 break;
 
             case TRACKING:
-                currentSystemState = CurrentSystemState.TRACKING;
+                nextSystemState = CurrentSystemState.TRACKING;
                 break;
 
             case READY_FOR_SHOT:
                 // READY_FOR_SHOT requires mechanisms to be at setpoints
                 // Otherwise we're in PREPARING_FOR_SHOT
                 if (isReadyForShot()) {
-                    currentSystemState = CurrentSystemState.READY_FOR_SHOT;
+                    nextSystemState = CurrentSystemState.READY_FOR_SHOT;
                 } else {
-                    currentSystemState = CurrentSystemState.PREPARING_FOR_SHOT;
+                    nextSystemState = CurrentSystemState.PREPARING_FOR_SHOT;
                 }
                 break;
 
             case SHOOTING:
-                // SHOOTING only allowed when we're in READY_FOR_SHOT
-                if (currentSystemState == CurrentSystemState.READY_FOR_SHOT) {
-                    currentSystemState = CurrentSystemState.SHOOTING;
+                boolean shouldStartShooting = currentSystemState == CurrentSystemState.READY_FOR_SHOT
+                    || (currentSystemState != CurrentSystemState.SHOOTING && isReadyForShot());
+                if (shouldStartShooting) {
+                    nextSystemState = CurrentSystemState.SHOOTING;
                     shotStartTime = Timer.getTimestamp();
                     hasStartedShooting = false;
-                } else {
-                    // Not ready yet, go to preparing
-                    if (isReadyForShot()) {
-                        if (currentSystemState == CurrentSystemState.SHOOTING) {
-                            break;
-                        }
-                        currentSystemState = CurrentSystemState.SHOOTING;
-                        shotStartTime = Timer.getTimestamp();
-                        hasStartedShooting = false;
-                    } else {
-                        currentSystemState = CurrentSystemState.PREPARING_FOR_SHOT;
-                    }
+                } else if (!isReadyForShot()) {
+                    nextSystemState = CurrentSystemState.PREPARING_FOR_SHOT;
                 }
                 break;
 
             case BUMP:
-                currentSystemState = CurrentSystemState.BUMP;
+                nextSystemState = CurrentSystemState.BUMP;
                 break;
         }
+
+        if (nextSystemState == CurrentSystemState.PREPARING_FOR_SHOT
+            && currentSystemState != CurrentSystemState.PREPARING_FOR_SHOT) {
+            lastStateBeforePreparingForShot = currentSystemState;
+        }
+
+        currentSystemState = nextSystemState;
     }
 
     private void handleIntakeStateTransitions() {
@@ -431,7 +432,7 @@ public class Superstructure extends SubsystemBase {
     }
 
     private void handlePreparingForShotState() {
-        applyDynamicShotOutputs(HopperSetpoint.OFF);
+        applyDynamicShotOutputs(getPreparingForShotHopperSetpoint(lastStateBeforePreparingForShot));
     }
 
     private void handleReadyForShotState() {
@@ -1092,6 +1093,12 @@ public class Superstructure extends SubsystemBase {
         };
     }
 
+    static HopperSetpoint getPreparingForShotHopperSetpoint(CurrentSystemState lastStateBeforePreparingForShot) {
+        return lastStateBeforePreparingForShot == CurrentSystemState.SHOOTING
+            ? HopperSetpoint.FEEDING_IDLE
+            : HopperSetpoint.OFF;
+    }
+
     // Public interface
     public void setDesiredSystemState(DesiredSystemState desiredSystemState) {
         this.desiredSystemState = desiredSystemState;
@@ -1112,6 +1119,11 @@ public class Superstructure extends SubsystemBase {
     @AutoLogOutput(key = "Superstructure/currentSystemState")
     public CurrentSystemState getCurrentSystemState() {
         return currentSystemState;
+    }
+
+    @AutoLogOutput(key = "Superstructure/lastStateBeforePreparingForShot")
+    public CurrentSystemState getLastStateBeforePreparingForShot() {
+        return lastStateBeforePreparingForShot;
     }
 
     @AutoLogOutput(key = "Superstructure/desiredSystemState")

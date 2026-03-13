@@ -20,6 +20,7 @@ public class HopperConfig {
     public double hopperMotorToOutputShaftRatio;
 
     public double feedingVelocityRPS;
+    public double feedingIdleVoltage = 4.0;
     public double reverseVelocityRPS;
 
     public double hopperVelocityToleranceRPS;

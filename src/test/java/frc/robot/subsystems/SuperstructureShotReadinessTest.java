@@ -10,9 +10,30 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import frc.robot.constants.ZoneConstants.RectangleZone;
 import frc.robot.lib.util.ShotCalculator.ShotData;
+import frc.robot.subsystems.hopper.Hopper.HopperSetpoint;
 import org.junit.jupiter.api.Test;
 
 class SuperstructureShotReadinessTest {
+    @Test
+    void getPreparingForShotHopperSetpoint_returnsFeedingIdleAfterShooting() {
+        assertEquals(
+            HopperSetpoint.FEEDING_IDLE,
+            Superstructure.getPreparingForShotHopperSetpoint(Superstructure.CurrentSystemState.SHOOTING)
+        );
+    }
+
+    @Test
+    void getPreparingForShotHopperSetpoint_returnsOffWhenPreparingDidNotFollowShooting() {
+        assertEquals(
+            HopperSetpoint.OFF,
+            Superstructure.getPreparingForShotHopperSetpoint(Superstructure.CurrentSystemState.TRACKING)
+        );
+        assertEquals(
+            HopperSetpoint.OFF,
+            Superstructure.getPreparingForShotHopperSetpoint(Superstructure.CurrentSystemState.READY_FOR_SHOT)
+        );
+    }
+
     @Test
     // Ready when both impact error and distance bounds are satisfied.
     void isShotReady_trueWhenImpactAndDistanceAreValid() {
