@@ -7,6 +7,7 @@ import static edu.wpi.first.units.Units.Volts;
 import java.util.ArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 import org.littletonrobotics.junction.AutoLogOutput;
@@ -29,7 +30,9 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.RobotState;
@@ -140,6 +143,8 @@ public class SwerveDrive extends SubsystemBase {
     // Path following
     private Path currentPath = null;
     private boolean shouldResetPose = false;
+    private boolean shouldMirrorCurrentPath = false;
+    private BooleanSupplier pathMirroringHook = () -> false;
     private Command currentPathCommand = null;
     private FollowPath.Builder followPathBuilder;
 
@@ -379,7 +384,7 @@ public class SwerveDrive extends SubsystemBase {
                 drivetrainConfig.followPathCrossTrackKI,
                 drivetrainConfig.followPathCrossTrackKD
             )
-        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true).withShouldMirror(() -> false);
+        ).withDefaultShouldFlip().withTRatioBasedTranslationHandoffs(true);
 
         // Configure omega override PID controllers with velocity limiting
         omegaOverridePIDController = new PIDController(
@@ -842,9 +847,15 @@ public class SwerveDrive extends SubsystemBase {
      */
     private Command buildPathCommand(Path path) {
         if (shouldResetPose) {
-            return followPathBuilder.withPoseReset(RobotState.getInstance()::resetPose).build(path);
+            return followPathBuilder
+                .withShouldMirror(() -> shouldMirrorCurrentPath)
+                .withPoseReset(RobotState.getInstance()::resetPose)
+                .build(path);
         }
-        return followPathBuilder.withPoseReset((Pose2d pose) -> {}).build(path);
+        return followPathBuilder
+            .withShouldMirror(() -> shouldMirrorCurrentPath)
+            .withPoseReset((Pose2d pose) -> {})
+            .build(path);
     }
 
     /**
@@ -1220,17 +1231,56 @@ public class SwerveDrive extends SubsystemBase {
     }
 
     public void setCurrentPath(Path path) {
+        setCurrentPath(path, false, false);
+    }
+
+    public void setCurrentPath(Path path, boolean shouldResetPose) {
+        setCurrentPath(path, shouldResetPose, false);
+    }
+
+    public void setCurrentPath(Path path, boolean shouldResetPose, boolean shouldMirrorPath) {
         this.currentPath = path;
-        this.shouldResetPose = false;
+        this.shouldResetPose = shouldResetPose;
+        this.shouldMirrorCurrentPath = shouldMirrorPath;
         // Clear existing command to allow fresh path to be scheduled
         cancelPathCommand();
     }
 
-    public void setCurrentPath(Path path, boolean shouldResetPose) {
-        this.currentPath = path;
-        this.shouldResetPose = shouldResetPose;
-        // Clear existing command to allow fresh path to be scheduled
-        cancelPathCommand();
+    public void setPathMirroringHook(BooleanSupplier pathMirroringHook) {
+        this.pathMirroringHook = pathMirroringHook != null ? pathMirroringHook : () -> false;
+    }
+
+    public Command followPathCommand(Path path) {
+        return followPathCommand(path, () -> false, pathMirroringHook);
+    }
+
+    public Command followPathCommand(Path path, boolean shouldResetPose) {
+        return followPathCommand(path, () -> shouldResetPose, pathMirroringHook);
+    }
+
+    public Command followPathCommand(Path path, boolean shouldResetPose, boolean shouldMirrorPath) {
+        return followPathCommand(path, () -> shouldResetPose, () -> shouldMirrorPath);
+    }
+
+    public Command followPathCommand(
+        Path path,
+        BooleanSupplier shouldResetPoseHook,
+        BooleanSupplier shouldMirrorPathHook
+    ) {
+        BooleanSupplier resolvedResetPoseHook = shouldResetPoseHook != null ? shouldResetPoseHook : () -> false;
+        BooleanSupplier resolvedMirrorPathHook = shouldMirrorPathHook != null ? shouldMirrorPathHook : () -> false;
+
+        return new InstantCommand(() -> setCurrentPath(
+            path,
+            resolvedResetPoseHook.getAsBoolean(),
+            resolvedMirrorPathHook.getAsBoolean()
+        )).andThen(
+            new InstantCommand(() -> setDesiredSystemState(DesiredSystemState.FOLLOW_PATH))
+        ).andThen(
+            new WaitUntilCommand(() -> currentPathCommand != null)
+        ).andThen(
+            new WaitUntilCommand(() -> getCurrentSystemState() == CurrentSystemState.IDLE)
+        );
     }
 
     public void setRotationRangeAccumulatedDegrees(double minAbsDeg, double maxAbsDeg) {
@@ -1509,6 +1559,21 @@ public class SwerveDrive extends SubsystemBase {
     @AutoLogOutput(key = "SwerveDrive/currentSystemState")
     public CurrentSystemState getCurrentSystemState() {
         return currentSystemState;
+    }
+
+    @AutoLogOutput(key = "SwerveDrive/hasCurrentPathCommand")
+    public boolean hasCurrentPathCommand() {
+        return currentPathCommand != null;
+    }
+
+    @AutoLogOutput(key = "SwerveDrive/currentPathCommandScheduled")
+    public boolean isCurrentPathCommandScheduled() {
+        return currentPathCommand != null && currentPathCommand.isScheduled();
+    }
+
+    @AutoLogOutput(key = "SwerveDrive/currentPathCommandFinished")
+    public boolean isCurrentPathCommandFinished() {
+        return currentPathCommand != null && currentPathCommand.isFinished();
     }
 
     public void setDesiredSystemState(DesiredSystemState desiredState) {
