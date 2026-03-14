@@ -27,7 +27,7 @@
   "pivotKP": 0.0,
   "pivotKI": 0.0,
   "pivotKD": 0.0,
-  "pivotMotorToOutputShaftRatio": 1.0,
+  "pivotMotorToOutputShaftRatio": 33.57,
   "pivotMaxVelocityRotationsPerSec": 1.25,
   "pivotMaxAccelerationRotationsPerSec2": 6.0,
   "pivotMaxJerkRotationsPerSec3": 40.0,
