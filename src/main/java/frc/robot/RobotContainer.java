@@ -109,7 +109,7 @@ public class RobotContainer {
         superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.STOWED);
         superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.RETRACTED);
 
-        autoChooser = Autos.createChooser(swerveDrive, superstructure);
+        autoChooser = Autos.getChooser();
         SmartDashboard.putData("Auto Chooser", autoChooser);
 
         // superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_TOP);
