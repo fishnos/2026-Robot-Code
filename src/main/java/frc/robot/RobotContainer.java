@@ -136,7 +136,11 @@ public class RobotContainer {
 
     private void configureBindings() {
         // bindCompetitionDriveHelpers();
-        this.xboxDriver.getAButton().onTrue(new AutoClimbCommand(ClimbingConstants.TOWER));
+        xboxDriver.getAButton().whileTrue(
+            new RunCommand(this::runAlliancePassHelper)
+        ).onFalse(
+            new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.TRACKING))
+        );        
         // xboxDriver.getXButton().onTrue(
         //     new InstantCommand(() -> robotState.resetPose(new Pose2d(robotState.getEstimatedPose().getTranslation(), new Rotation2d(0))))
         // );
@@ -185,17 +189,11 @@ public class RobotContainer {
         // xboxOperator.getUpDpad().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_TOP))
         // );
-        // xboxOperator.getRightDpad().onTrue(
-        //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_CENTER))
-        // );
         // xboxOperator.getDownDpad().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_BOTTOM))
         // );
         // xboxOperator.getLeftBumper().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_NEUTRAL_TOP))
-        // );
-        // xboxOperator.getLeftDpad().onTrue(
-        //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_NEUTRAL_CENTER))
         // );
         // xboxOperator.getRightBumper().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_NEUTRAL_BOTTOM))

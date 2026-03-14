@@ -105,10 +105,8 @@ public class Superstructure extends SubsystemBase {
     public enum TargetState {
         HUB,
         PASS_ALLIANCE_TOP,
-        PASS_ALLIANCE_CENTER,
         PASS_ALLIANCE_BOTTOM,
         PASS_NEUTRAL_TOP,
-        PASS_NEUTRAL_CENTER,
         PASS_NEUTRAL_BOTTOM;
 
         public boolean isPassTarget() {
@@ -117,7 +115,7 @@ public class Superstructure extends SubsystemBase {
 
         public boolean isAlliancePassTarget() {
             return switch (this) {
-                case PASS_ALLIANCE_TOP, PASS_ALLIANCE_CENTER, PASS_ALLIANCE_BOTTOM -> true;
+                case PASS_ALLIANCE_TOP, PASS_ALLIANCE_BOTTOM -> true;
                 default -> false;
             };
         }
@@ -1032,10 +1030,8 @@ public class Superstructure extends SubsystemBase {
         Translation3d targetLocation = switch (targetState) {
             case HUB -> FieldConstants.Hub.hubCenter;
             case PASS_ALLIANCE_TOP -> FieldConstants.Passing.allianceTop;
-            case PASS_ALLIANCE_CENTER -> FieldConstants.Passing.allianceCenter;
             case PASS_ALLIANCE_BOTTOM -> FieldConstants.Passing.allianceBottom;
             case PASS_NEUTRAL_TOP -> FieldConstants.Passing.neutralTop;
-            case PASS_NEUTRAL_CENTER -> FieldConstants.Passing.neutralCenter;
             case PASS_NEUTRAL_BOTTOM -> FieldConstants.Passing.neutralBottom;
         };
         if (Constants.shouldFlipPath()) {

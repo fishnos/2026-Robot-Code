@@ -393,10 +393,8 @@ class SuperstructureShotReadinessTest {
     void resolveTargetForZoneConstraints_allPassTargetsAreAllowedFromAnyZone() {
         Superstructure.TargetState[] passTargets = {
             Superstructure.TargetState.PASS_ALLIANCE_TOP,
-            Superstructure.TargetState.PASS_ALLIANCE_CENTER,
             Superstructure.TargetState.PASS_ALLIANCE_BOTTOM,
             Superstructure.TargetState.PASS_NEUTRAL_TOP,
-            Superstructure.TargetState.PASS_NEUTRAL_CENTER,
             Superstructure.TargetState.PASS_NEUTRAL_BOTTOM
         };
         Superstructure.RobotFieldZone[] zones = {
@@ -419,7 +417,7 @@ class SuperstructureShotReadinessTest {
     @Test
     void selectClosestLineOfSightTarget_prefersNearestVisibleTarget() {
         assertEquals(
-            Superstructure.TargetState.PASS_ALLIANCE_CENTER,
+            Superstructure.TargetState.PASS_ALLIANCE_BOTTOM,
             Superstructure.selectClosestLineOfSightTarget(
                 new Translation2d(0.0, 0.0),
                 new Superstructure.TargetCandidate(
@@ -428,12 +426,12 @@ class SuperstructureShotReadinessTest {
                     true
                 ),
                 new Superstructure.TargetCandidate(
-                    Superstructure.TargetState.PASS_ALLIANCE_CENTER,
+                    Superstructure.TargetState.PASS_ALLIANCE_BOTTOM,
                     new Translation2d(2.0, 0.0),
                     true
                 ),
                 new Superstructure.TargetCandidate(
-                    Superstructure.TargetState.PASS_ALLIANCE_BOTTOM,
+                    Superstructure.TargetState.PASS_NEUTRAL_TOP,
                     new Translation2d(3.0, 0.0),
                     true
                 )
@@ -448,7 +446,7 @@ class SuperstructureShotReadinessTest {
             Superstructure.selectClosestLineOfSightTarget(
                 new Translation2d(0.0, 0.0),
                 new Superstructure.TargetCandidate(
-                    Superstructure.TargetState.PASS_ALLIANCE_CENTER,
+                    Superstructure.TargetState.PASS_NEUTRAL_TOP,
                     new Translation2d(1.0, 0.0),
                     false
                 ),
@@ -472,7 +470,7 @@ class SuperstructureShotReadinessTest {
                     false
                 ),
                 new Superstructure.TargetCandidate(
-                    Superstructure.TargetState.PASS_ALLIANCE_CENTER,
+                    Superstructure.TargetState.PASS_ALLIANCE_BOTTOM,
                     new Translation2d(2.0, 0.0),
                     false
                 )

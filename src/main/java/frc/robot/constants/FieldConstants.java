@@ -87,11 +87,9 @@ public class FieldConstants {
         public static final double passTargetHeightMeters = 0.0;
 
         public static final Translation3d allianceTop = new Translation3d(0.245, 7.782, passTargetHeightMeters);
-        public static final Translation3d allianceCenter = new Translation3d(1.345, 4.018, passTargetHeightMeters);
         public static final Translation3d allianceBottom = new Translation3d(0.288, 0.269, passTargetHeightMeters);
 
         public static final Translation3d neutralTop = new Translation3d(6.108, 5.632, passTargetHeightMeters);
-        public static final Translation3d neutralCenter = new Translation3d(5.729, 4.045, passTargetHeightMeters);
         public static final Translation3d neutralBottom = new Translation3d(6.028, 0.688, passTargetHeightMeters);
     }
 

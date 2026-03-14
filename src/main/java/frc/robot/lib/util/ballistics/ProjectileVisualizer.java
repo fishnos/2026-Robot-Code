@@ -142,16 +142,13 @@ public class ProjectileVisualizer extends SubsystemBase {
 
         // Build translations array from only active projectiles
         Translation3d[] activeTranslations = null;
-        if (Constants.VERBOSE_LOGGING_ENABLED) {
-            activeTranslations = new Translation3d[projectiles.size()];
-            for (int i = 0; i < projectiles.size(); i++) {
-                activeTranslations[i] = projectiles.get(i).currentPosition;
-            }
+        activeTranslations = new Translation3d[projectiles.size()];
+        for (int i = 0; i < projectiles.size(); i++) {
+            activeTranslations[i] = projectiles.get(i).currentPosition;
         }
+        
 
-        if (Constants.VERBOSE_LOGGING_ENABLED && activeTranslations != null) {
-            Logger.recordOutput("ProjectileVisualizer/Translations", activeTranslations);
-        }
+        Logger.recordOutput("ProjectileVisualizer/Translations", activeTranslations);
         Logger.recordOutput("ProjectileVisualizer/ActiveCount", projectiles.size());
     }
 
@@ -191,9 +188,8 @@ public class ProjectileVisualizer extends SubsystemBase {
         }
         projectiles.clear();
         nextId = 0;
-        if (Constants.VERBOSE_LOGGING_ENABLED) {
-            Logger.recordOutput("ProjectileVisualizer/Translations", new Translation3d[0]);
-        }
+        Logger.recordOutput("ProjectileVisualizer/Translations", new Translation3d[0]);
+        
         Logger.recordOutput("ProjectileVisualizer/ActiveCount", 0);
     }
 
@@ -237,12 +233,11 @@ public class ProjectileVisualizer extends SubsystemBase {
             lastUpdateTime = now;
             initializeState();
             currentPosition = initialPose.getTranslation();
-            if (Constants.VERBOSE_LOGGING_ENABLED) {
-                Logger.recordOutput(logKey("InitialPose"), initialPose);
-                Logger.recordOutput(logKey("LaunchAngleDegrees"), Math.toDegrees(launchAngle));
-                Logger.recordOutput(logKey("LaunchVelocity"), launchVelocitySupplier.get());
-                Logger.recordOutput(logKey("SpinRateRPM"), spinRateRPMSupplier.get());
-            }
+            Logger.recordOutput(logKey("InitialPose"), initialPose);
+            Logger.recordOutput(logKey("LaunchAngleDegrees"), Math.toDegrees(launchAngle));
+            Logger.recordOutput(logKey("LaunchVelocity"), launchVelocitySupplier.get());
+            Logger.recordOutput(logKey("SpinRateRPM"), spinRateRPMSupplier.get());
+            
             initialized = true;
         }
 
@@ -304,23 +299,20 @@ public class ProjectileVisualizer extends SubsystemBase {
             Pose3d currentPose = new Pose3d(currentPosition, initialPose.getRotation());
 
             double elapsedTotal = now - startTime;
-            if (Constants.VERBOSE_LOGGING_ENABLED) {
-                Logger.recordOutput(logKey("CurrentPose"), currentPose);
-                Logger.recordOutput(logKey("CurrentPosition"), currentPosition);
-                Logger.recordOutput(logKey("ElapsedTime"), elapsedTotal);
-                Logger.recordOutput(logKey("Height"), state.z());
-                Logger.recordOutput(logKey("VelocityMagnitude"), state.speed());
-            }
+            Logger.recordOutput(logKey("CurrentPose"), currentPose);
+            Logger.recordOutput(logKey("CurrentPosition"), currentPosition);
+            Logger.recordOutput(logKey("ElapsedTime"), elapsedTotal);
+            Logger.recordOutput(logKey("Height"), state.z());
+            Logger.recordOutput(logKey("VelocityMagnitude"), state.speed());
+            
         }
 
         private void clearLogs() {
-            if (Constants.VERBOSE_LOGGING_ENABLED) {
-                Logger.recordOutput(logKey("CurrentPose"), new Pose3d());
-                Logger.recordOutput(logKey("CurrentPosition"), new Translation3d());
-                Logger.recordOutput(logKey("ElapsedTime"), 0.0);
-                Logger.recordOutput(logKey("Height"), 0.0);
-                Logger.recordOutput(logKey("VelocityMagnitude"), 0.0);
-            }
+            Logger.recordOutput(logKey("CurrentPose"), new Pose3d());
+            Logger.recordOutput(logKey("CurrentPosition"), new Translation3d());
+            Logger.recordOutput(logKey("ElapsedTime"), 0.0);
+            Logger.recordOutput(logKey("Height"), 0.0);
+            Logger.recordOutput(logKey("VelocityMagnitude"), 0.0);
         }
 
         private boolean isFinished() {

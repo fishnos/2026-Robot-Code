@@ -156,8 +156,8 @@
   "shooterPosePitchDeg": 0.0,
   "shooterPoseYawDeg": 0.0,
   "hoodAngleToleranceDegrees": 2.0,
-  "turretAngleToleranceRotations": 0.0055555556,
-  "flywheelVelocityToleranceRPS": 3.0,
+  "turretAngleToleranceRotations": 0.01,
+  "flywheelVelocityToleranceRPS": 5.0,
   "shootingLerpTable": [
     {
       "distanceMeters": 0.889,
