@@ -143,6 +143,20 @@ public class RobotContainer {
             new InstantCommand(() -> superstructure.setDesiredIntakeState(Superstructure.DesiredIntakeState.DEPLOYED))
         );
 
+
+        xboxDriver.getBButton().onTrue(
+            new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_BOTTOM))
+        );
+        xboxDriver.getBButton().onFalse(
+            new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.HUB))
+        );
+        xboxDriver.getXButton().onTrue(
+            new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.PASS_ALLIANCE_TOP))
+        );
+        xboxDriver.getXButton().onFalse(
+            new InstantCommand(() -> superstructure.setDesiredTargetState(Superstructure.TargetState.HUB))
+        );        
+
         // xboxDriver.getBButton().onTrue(
         //     new InstantCommand(() -> superstructure.setDesiredSystemState(Superstructure.DesiredSystemState.SHOOTING))
         // );
