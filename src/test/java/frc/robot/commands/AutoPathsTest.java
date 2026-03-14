@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import frc.robot.commands.autos.AutoPaths;
 import frc.robot.constants.ClimbingConstants;
 import frc.robot.constants.ZoneConstants.RectangleZone;
 import java.util.List;

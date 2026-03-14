@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import frc.robot.RobotState;
+import frc.robot.commands.autos.AutoPaths;
 import frc.robot.constants.ClimbingConstants;
 import frc.robot.lib.BLine.Path;
 import frc.robot.subsystems.Superstructure;
