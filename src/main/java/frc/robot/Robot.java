@@ -4,6 +4,10 @@
 
 package frc.robot;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
 import org.littletonrobotics.junction.Logger;
@@ -16,6 +20,7 @@ import com.ctre.phoenix6.SignalLogger;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.HttpCamera;
 import edu.wpi.first.net.WebServer;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -35,6 +40,7 @@ import frc.robot.lib.util.PhoenixUtil;
  */
 public class Robot extends LoggedRobot {
     private static final String ELASTIC_LIMELIGHT_STREAM_NAME = "limelight-fr";
+    private static final String PHOENIX_USB_LOG_PATH = "/U/logs/ctre";
 
     private Command m_autonomousCommand;
     private RobotContainer m_robotContainer;
@@ -48,6 +54,7 @@ public class Robot extends LoggedRobot {
     @Override
     public void robotInit() {
 
+        configurePhoenixLogging();
         SignalLogger.enableAutoLogging(true); // TODO: ABSOLUTELY NEED TO BE HERE FOR COMPS
         // Record metadata
         // Logger.recordMetadata("ProjectName", BuildConstants.MAVEN_NAME);
@@ -103,6 +110,23 @@ public class Robot extends LoggedRobot {
         m_robotContainer = RobotContainer.getInstance();
 
         linkFollowPathLogging();
+    }
+
+    private void configurePhoenixLogging() {
+        if (Constants.currentMode == Constants.Mode.SIM || Constants.currentMode == Constants.Mode.REPLAY) {
+            return;
+        }
+
+        try {
+            Files.createDirectories(Path.of(PHOENIX_USB_LOG_PATH));
+        } catch (IOException exception) {
+            DriverStation.reportError(
+                "Failed to create Phoenix 6 USB log directory at " + PHOENIX_USB_LOG_PATH,
+                exception.getStackTrace());
+            return;
+        }
+
+        SignalLogger.setPath(PHOENIX_USB_LOG_PATH);
     }
 
     /**
