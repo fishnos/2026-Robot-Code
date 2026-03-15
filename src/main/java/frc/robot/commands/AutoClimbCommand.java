@@ -81,9 +81,7 @@ public class AutoClimbCommand extends SequentialCommandGroup {
         ).finallyDo(interrupted -> {
             recordStage(interrupted ? "SEQUENCE/INTERRUPTED" : "SEQUENCE/FINALLY");
             swerveDrive.setDesiredSystemState(restoreState);
-            if (interrupted && superstructure.getDesiredClimbState() != Superstructure.DesiredClimbState.CLIMBED) {
-                superstructure.setDesiredClimbState(Superstructure.DesiredClimbState.EXTENDED);
-            }
+            
 
             Logger.recordOutput("AutoClimb/finallyInterrupted", interrupted);
             Logger.recordOutput("AutoClimb/restoreSwerveState", restoreState.name());
